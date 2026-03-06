@@ -1,24 +1,31 @@
+'use client';
+
 interface NavigationButtonsProps {
-  onBack?: () => void;
-  onNext?: () => void;
-  onSubmit?: () => void;
-  nextDisabled?: boolean;
-  submitDisabled?: boolean;
+  step: number;
+  totalSteps: number;
+  onBack: () => void;
+  onNext: () => void;
+  onSubmit: () => void;
+  isSubmitting?: boolean;
 }
 
 export default function NavigationButtons({
+  step,
+  totalSteps,
   onBack,
   onNext,
   onSubmit,
-  nextDisabled = false,
-  submitDisabled = false,
+  isSubmitting = false,
 }: NavigationButtonsProps) {
+  const isLast = step === totalSteps;
+
   return (
-    <div className="flex items-center justify-between mt-8 pt-6 border-t border-zinc-100">
-      {onBack ? (
+    <div className="mt-8 flex items-center justify-between">
+      {step > 1 ? (
         <button
+          type="button"
           onClick={onBack}
-          className="px-5 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+          className="text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
         >
           ← Back
         </button>
@@ -26,19 +33,20 @@ export default function NavigationButtons({
         <div />
       )}
 
-      {onSubmit ? (
+      {isLast ? (
         <button
+          type="button"
           onClick={onSubmit}
-          disabled={submitDisabled}
-          className="px-6 py-2.5 text-sm font-semibold text-white bg-zinc-900 rounded-full hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          disabled={isSubmitting}
+          className="rounded-full bg-[var(--color-rose)] px-7 py-3 text-sm text-white transition-colors hover:bg-[var(--color-rose-dark)] disabled:opacity-60"
         >
-          Submit
+          Create my profile
         </button>
       ) : (
         <button
+          type="button"
           onClick={onNext}
-          disabled={nextDisabled}
-          className="px-6 py-2.5 text-sm font-semibold text-white bg-zinc-900 rounded-full hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="rounded-full bg-[var(--color-rose)] px-7 py-3 text-sm text-white transition-colors hover:bg-[var(--color-rose-dark)]"
         >
           Next →
         </button>

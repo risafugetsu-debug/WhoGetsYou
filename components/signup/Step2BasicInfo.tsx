@@ -1,163 +1,150 @@
-import { useState } from "react";
-import { BasicInfoData, EthnicityOption } from "./types";
-import NavigationButtons from "./NavigationButtons";
+'use client';
+
+import { useState } from 'react';
+import type { BasicInfoData, EthnicityOption } from './types';
+import { ETHNICITY_OPTIONS } from './types';
 
 interface Step2BasicInfoProps {
   data: BasicInfoData;
   onChange: (data: BasicInfoData) => void;
-  onNext: () => void;
-  onBack: () => void;
+  errors: Partial<Record<keyof BasicInfoData, string>>;
 }
 
-const ETHNICITY_OPTIONS: EthnicityOption[] = [
-  "Asian",
-  "Black or African American",
-  "Hispanic or Latino",
-  "Middle Eastern or North African",
-  "Native American or Alaska Native",
-  "Native Hawaiian or Pacific Islander",
-  "White",
-  "Multiracial",
-  "Prefer not to say",
-];
+const inputBase =
+  'w-full rounded-xl border px-4 py-2.5 text-sm bg-[var(--background)] text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)]';
 
-type Errors = Partial<Record<keyof BasicInfoData, string>>;
-
-function inputClass(hasError: boolean) {
-  return `w-full px-3 py-2.5 text-sm rounded-lg border transition-colors outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-1 ${
-    hasError ? "border-red-400 bg-red-50" : "border-zinc-200 bg-white hover:border-zinc-300"
-  }`;
-}
-
-export default function Step2BasicInfo({
-  data,
-  onChange,
-  onNext,
-  onBack,
-}: Step2BasicInfoProps) {
-  const [errors, setErrors] = useState<Errors>({});
-
-  function update(field: keyof BasicInfoData, value: string | EthnicityOption | null) {
-    onChange({ ...data, [field]: value });
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+function validateField(field: keyof BasicInfoData, data: BasicInfoData): string {
+  switch (field) {
+    case 'firstName':
+      return data.firstName.trim() ? '' : 'Required';
+    case 'email': {
+      const e = data.email;
+      return e.trim() && e.includes('@') && e.slice(e.indexOf('@')).includes('.')
+        ? ''
+        : 'Valid email required';
     }
+    case 'password':
+      return data.password.length >= 8 ? '' : 'Min 8 characters';
+    case 'confirmPassword':
+      return data.confirmPassword === data.password ? '' : 'Passwords do not match';
+    default:
+      return '';
+  }
+}
+
+interface FieldProps {
+  id: keyof BasicInfoData;
+  label: string;
+  value: string;
+  error: string;
+  onChange: (val: string) => void;
+  onBlur: () => void;
+  type?: string;
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+}
+
+function Field({ id, label, value, error, onChange, onBlur, type = 'text', inputProps }: FieldProps) {
+  return (
+    <div>
+      <label htmlFor={id} className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1 block">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className={`${inputBase} ${error ? 'border-red-300' : 'border-[var(--color-border)]'}`}
+        {...inputProps}
+      />
+      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+    </div>
+  );
+}
+
+export default function Step2BasicInfo({ data, onChange, errors }: Step2BasicInfoProps) {
+  const [touched, setTouched] = useState(new Set<keyof BasicInfoData>());
+
+  function update(key: keyof BasicInfoData, value: string) {
+    onChange({ ...data, [key]: value });
   }
 
-  function handleNext() {
-    const newErrors: Errors = {};
-    if (!data.firstName.trim()) newErrors.firstName = "First name is required";
-    if (!data.lastName.trim()) newErrors.lastName = "Last name is required";
-    if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
-      newErrors.email = "A valid email is required";
-    if (!data.age.trim() || Number(data.age) < 18 || Number(data.age) > 100)
-      newErrors.age = "Age must be between 18 and 100";
-    if (!data.zipCode.trim() || !/^\d{5}$/.test(data.zipCode))
-      newErrors.zipCode = "Enter a valid 5-digit ZIP code";
+  function markTouched(field: keyof BasicInfoData) {
+    setTouched((prev) => new Set([...prev, field]));
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    setErrors({});
-    onNext();
+  function getError(field: keyof BasicInfoData): string {
+    if (touched.has(field)) return validateField(field, data);
+    return errors[field] ?? '';
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-zinc-900 mb-1">Basic info</h2>
-      <p className="text-sm text-zinc-500 mb-6">Tell us a little about yourself.</p>
+    <div className="space-y-4">
+      <h2 className="text-lg font-light text-[var(--color-charcoal)]">About you</h2>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-zinc-700 mb-1">First name</label>
-            <input
-              type="text"
-              value={data.firstName}
-              onChange={(e) => update("firstName", e.target.value)}
-              placeholder="Jane"
-              className={inputClass(!!errors.firstName)}
-            />
-            {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-zinc-700 mb-1">Last name</label>
-            <input
-              type="text"
-              value={data.lastName}
-              onChange={(e) => update("lastName", e.target.value)}
-              placeholder="Doe"
-              className={inputClass(!!errors.lastName)}
-            />
-            {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
-          </div>
-        </div>
+      <Field
+        id="firstName"
+        label="First name"
+        value={data.firstName}
+        error={getError('firstName')}
+        onChange={(v) => update('firstName', v)}
+        onBlur={() => markTouched('firstName')}
+      />
 
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">Email</label>
-          <input
-            type="email"
-            value={data.email}
-            onChange={(e) => update("email", e.target.value)}
-            placeholder="jane@example.com"
-            className={inputClass(!!errors.email)}
-          />
-          {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-        </div>
+      <Field
+        id="email"
+        label="Email"
+        type="email"
+        value={data.email}
+        error={getError('email')}
+        onChange={(v) => update('email', v)}
+        onBlur={() => markTouched('email')}
+      />
 
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">Age</label>
-          <input
-            type="number"
-            value={data.age}
-            onChange={(e) => update("age", e.target.value)}
-            placeholder="28"
-            min={18}
-            max={100}
-            className={inputClass(!!errors.age)}
-          />
-          {errors.age && <p className="text-xs text-red-500 mt-1">{errors.age}</p>}
-        </div>
+      <Field
+        id="password"
+        label="Password"
+        type="password"
+        value={data.password}
+        error={getError('password')}
+        onChange={(v) => update('password', v)}
+        onBlur={() => markTouched('password')}
+        inputProps={{ autoComplete: 'new-password' }}
+      />
 
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">
-            Ethnicity <span className="text-zinc-400 font-normal">(optional)</span>
-          </label>
-          <select
-            value={data.ethnicity ?? ""}
-            onChange={(e) =>
-              update("ethnicity", e.target.value ? (e.target.value as EthnicityOption) : null)
-            }
-            className={`${inputClass(false)} text-zinc-700`}
-          >
-            <option value="">Select...</option>
-            {ETHNICITY_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-zinc-400 mt-1">
-            Optional — used for analytics only. &quot;Prefer not to say&quot; is always available.
-          </p>
-        </div>
+      <Field
+        id="confirmPassword"
+        label="Confirm password"
+        type="password"
+        value={data.confirmPassword}
+        error={getError('confirmPassword')}
+        onChange={(v) => update('confirmPassword', v)}
+        onBlur={() => markTouched('confirmPassword')}
+        inputProps={{ autoComplete: 'new-password' }}
+      />
 
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">ZIP code</label>
-          <input
-            type="text"
-            value={data.zipCode}
-            onChange={(e) => update("zipCode", e.target.value)}
-            placeholder="90210"
-            maxLength={5}
-            className={inputClass(!!errors.zipCode)}
-          />
-          {errors.zipCode && <p className="text-xs text-red-500 mt-1">{errors.zipCode}</p>}
-        </div>
+      <div>
+        <label htmlFor="ethnicity" className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1 block">
+          Ethnicity
+        </label>
+        <select
+          id="ethnicity"
+          value={data.ethnicity ?? ''}
+          onChange={(e) =>
+            onChange({ ...data, ethnicity: (e.target.value as EthnicityOption) || null })
+          }
+          className={`${inputBase} border-[var(--color-border)]`}
+        >
+          <option value="">Select (optional)</option>
+          {ETHNICITY_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+        <p className="text-xs text-[var(--color-muted)] mt-1">
+          Optional — used only for analytics.
+        </p>
       </div>
-
-      <NavigationButtons onBack={onBack} onNext={handleNext} />
     </div>
   );
 }

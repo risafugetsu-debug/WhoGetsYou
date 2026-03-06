@@ -1,55 +1,51 @@
-import { RoleData, UserRole } from "./types";
-import NavigationButtons from "./NavigationButtons";
+'use client';
+
+import type { RoleData, UserRole } from './types';
 
 interface Step1RoleProps {
   data: RoleData;
   onChange: (data: RoleData) => void;
-  onNext: () => void;
 }
 
-const roles: { value: UserRole; title: string; tagline: string }[] = [
+const cards: { role: UserRole; heading: string; subtext: string }[] = [
   {
-    value: "pre-bride",
-    title: "I'm looking for a dress",
-    tagline: "Browse dresses from real brides and find your perfect match",
+    role: 'pre-bride',
+    heading: "I'm looking for a dress",
+    subtext: 'Borrow a loved gown that fits you perfectly.',
   },
   {
-    value: "post-bride",
-    title: "I have a dress to share",
-    tagline: "Help another bride find their perfect dress",
+    role: 'post-bride',
+    heading: 'I wore it, now I want to share the happiness',
+    subtext: 'Lend your gown and let another bride have her moment in it.',
   },
 ];
 
-export default function Step1Role({ data, onChange, onNext }: Step1RoleProps) {
+export default function Step1Role({ data, onChange }: Step1RoleProps) {
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-zinc-900 mb-1">Who are you?</h2>
-      <p className="text-sm text-zinc-500 mb-6">Choose the role that best describes you.</p>
-
-      <div className="flex flex-col gap-3">
-        {roles.map((role) => {
-          const selected = data.role === role.value;
+    <div className="space-y-5">
+      <h2 className="text-lg font-light text-[var(--color-charcoal)]">
+        What brings you here?
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
+        {cards.map(({ role, heading, subtext }) => {
+          const selected = data.role === role;
           return (
             <button
-              key={role.value}
-              onClick={() => onChange({ role: role.value })}
-              className={`w-full text-left px-5 py-4 rounded-xl border-2 transition-all ${
+              key={role}
+              type="button"
+              onClick={() => onChange({ role })}
+              className={`rounded-2xl p-6 text-left w-full transition-all ${
                 selected
-                  ? "border-zinc-900 bg-zinc-50"
-                  : "border-zinc-200 bg-white hover:border-zinc-400"
+                  ? 'border-2 border-[var(--color-rose)] bg-[var(--color-blush)]'
+                  : 'border border-[var(--color-border)] hover:border-[var(--color-rose)]'
               }`}
             >
-              <p className="font-semibold text-zinc-900 text-sm">{role.title}</p>
-              <p className="text-zinc-500 text-sm mt-0.5">{role.tagline}</p>
+              <p className="text-sm font-medium text-[var(--color-charcoal)]">{heading}</p>
+              <p className="mt-1.5 text-xs text-[var(--color-muted)]">{subtext}</p>
             </button>
           );
         })}
       </div>
-
-      <NavigationButtons
-        onNext={onNext}
-        nextDisabled={data.role === null}
-      />
     </div>
   );
 }
