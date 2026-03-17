@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 
 export default function HeroCTAs() {
   const [showForm, setShowForm] = useState(false);
@@ -18,14 +17,14 @@ export default function HeroCTAs() {
     setSubmitting(true);
     setError('');
 
-    const { error: dbError } = await supabase.from('waitlist_submissions').insert({
-      email: email.trim(),
-      first_name: firstName.trim() || null,
-      role: 'lender',
+    const res = await fetch('/api/waitlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), first_name: firstName.trim() || null }),
     });
 
     setSubmitting(false);
-    if (dbError) { setError('Something went wrong. Please try again.'); return; }
+    if (!res.ok) { setError('Something went wrong. Please try again.'); return; }
     setSubmitted(true);
   }
 
