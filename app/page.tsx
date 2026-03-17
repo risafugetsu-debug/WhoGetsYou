@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import HeroCTAs from '@/components/HeroCTAs';
 
 export default function Home() {
   return (
@@ -16,20 +17,7 @@ export default function Home() {
           WhoGetsYou connects brides who&apos;ve worn their gown with brides who are ready to wear
           one — matched by fit, style, and story.
         </p>
-        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-          <Link
-            href="/sign-up?role=post-bride"
-            className="rounded-full bg-[var(--color-charcoal)] px-8 py-3.5 text-sm text-[var(--color-ivory)] transition-colors hover:bg-[var(--color-rose-dark)]"
-          >
-            List your gown
-          </Link>
-          <Link
-            href="/sign-up?role=pre-bride"
-            className="rounded-full border border-[var(--color-charcoal)] px-8 py-3.5 text-sm text-[var(--color-charcoal)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-rose)]"
-          >
-            Find a gown
-          </Link>
-        </div>
+        <HeroCTAs />
         <p className="mt-6 text-xs text-[var(--color-muted)]">
           Currently serving New York City — Manhattan, Brooklyn, Queens, The Bronx &amp; Staten Island
         </p>

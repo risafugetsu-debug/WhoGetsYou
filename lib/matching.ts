@@ -75,7 +75,7 @@ export interface GownListing {
   materials: string[];
   condition: string;
   condition_notes: string;
-  wedding_borough: string;
+  borough: string;
   wedding_date: string;
   price_1day: number | null;
   price_3day: number | null;

@@ -18,7 +18,7 @@ interface FormState {
   materials: string[];
   condition: string;
   condition_notes: string;
-  wedding_borough: string;
+  borough: string;
   wedding_date: string;
   price_1day: string;
   price_3day: string;
@@ -40,7 +40,7 @@ export default function EditListingPage() {
     materials: [],
     condition: '',
     condition_notes: '',
-    wedding_borough: '',
+    borough: '',
     wedding_date: '',
     price_1day: '',
     price_3day: '',
@@ -54,8 +54,11 @@ export default function EditListingPage() {
   const [newPhotoPreviews, setNewPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [photoError, setPhotoError] = useState('');
+  const [showPricingTips, setShowPricingTips] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -84,7 +87,7 @@ export default function EditListingPage() {
           materials: data.materials,
           condition: data.condition,
           condition_notes: data.condition_notes ?? '',
-          wedding_borough: data.wedding_borough,
+          borough: data.borough,
           wedding_date: data.wedding_date,
           price_1day: data.price_1day != null ? String(data.price_1day) : '',
           price_3day: data.price_3day != null ? String(data.price_3day) : '',
@@ -159,7 +162,7 @@ export default function EditListingPage() {
     if (!form.silhouette) e.silhouette = 'Required';
     if (form.materials.length === 0) e.materials = 'Select at least one fabric';
     if (!form.condition) e.condition = 'Required';
-    if (!form.wedding_borough) e.wedding_borough = 'Required';
+    if (!form.borough) e.borough = 'Required';
     if (!form.wedding_date) e.wedding_date = 'Required';
     setErrors(e);
 
@@ -184,7 +187,7 @@ export default function EditListingPage() {
       materials: form.materials,
       condition: form.condition,
       condition_notes: form.condition_notes,
-      wedding_borough: form.wedding_borough,
+      borough: form.borough,
       wedding_date: form.wedding_date,
       price_1day: form.price_1day ? parseFloat(form.price_1day) : null,
       price_3day: form.price_3day ? parseFloat(form.price_3day) : null,
@@ -212,13 +215,39 @@ export default function EditListingPage() {
     }
 
     setSaving(false);
-    router.push('/dashboard');
+    if (!error) {
+      setSaved(true);
+    }
   }
 
   if (loading) {
     return (
       <div className="flex min-h-[calc(100vh-65px)] items-center justify-center">
         <p className="text-sm text-[var(--color-muted)]">Loading…</p>
+      </div>
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-24 text-center">
+        <p className="text-4xl mb-6">🤍</p>
+        <h1 className="text-2xl font-light tracking-wide text-[var(--color-charcoal)] mb-4">
+          Your dress is listed.
+        </h1>
+        <p className="text-sm text-[var(--color-muted)] leading-relaxed mb-3">
+          Pre-brides who match your measurements will see it first.
+        </p>
+        <p className="text-sm text-[var(--color-muted)] leading-relaxed mb-8">
+          One thing to know: renters won&apos;t be able to alter the dress, so the fit match matters.
+          We&apos;ve already handled that — anyone who reaches out will be within your size range.
+        </p>
+        <Link
+          href="/dashboard"
+          className="rounded-full bg-[var(--color-charcoal)] px-8 py-3 text-sm text-[var(--color-ivory)] transition-colors hover:bg-[var(--color-rose-dark)]"
+        >
+          Back to dashboard
+        </Link>
       </div>
     );
   }
@@ -360,11 +389,34 @@ export default function EditListingPage() {
 
         {/* Rental pricing */}
         <div>
-          <p className="mb-1 text-sm font-medium text-[var(--color-charcoal)]">
-            Rental pricing <span className="text-[var(--color-muted)] font-normal">(optional)</span>
-          </p>
-          <p className="mb-3 text-xs text-[var(--color-muted)]">Set your rates per rental period. Leave blank to discuss pricing directly.</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-sm font-medium text-[var(--color-charcoal)]">Set Your Rental Price</p>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowTooltip((v) => !v)}
+                className="flex h-4 w-4 items-center justify-center rounded-full border border-[var(--color-border)] text-[10px] text-[var(--color-muted)] hover:border-[var(--color-rose)] hover:text-[var(--color-rose)] transition-colors"
+                aria-label="Pricing info"
+              >
+                ?
+              </button>
+              {showTooltip && (
+                <div className="absolute left-6 top-0 z-10 w-64 rounded-xl border border-[var(--color-border)] bg-white p-3 text-xs text-[var(--color-muted)] shadow-md leading-relaxed">
+                  We can&apos;t set your price for you — but here&apos;s what we&apos;ve seen: dresses priced above 30% of retail get significantly fewer inquiries. Pre-brides comparing options will choose the dress that fits and makes financial sense. Pricing competitively is your best visibility tool.
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="mb-3 text-xs text-[var(--color-muted)]">You set the price. We&apos;ll tell you what tends to work.</p>
+
+          {/* Guidance card */}
+          <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-3 text-xs text-[var(--color-charcoal)] leading-relaxed">
+            Dresses priced at <span className="font-medium">10–20% of retail</span> tend to rent.
+            At that range, a $2,000 dress lists at $200–$400 — competitive enough to attract serious pre-brides,
+            while putting money back in your pocket from something sitting in a bag.
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mb-4">
             {([
               { key: 'price_1day', label: '1 day' },
               { key: 'price_3day', label: '3 days' },
@@ -387,20 +439,46 @@ export default function EditListingPage() {
               </div>
             ))}
           </div>
+
+          {/* Expandable pricing tips */}
+          <button
+            type="button"
+            onClick={() => setShowPricingTips((v) => !v)}
+            className="flex items-center gap-1 text-xs text-[var(--color-rose)] hover:text-[var(--color-rose-dark)] transition-colors"
+          >
+            <span>{showPricingTips ? '▾' : '▸'}</span>
+            Pricing tips
+          </button>
+          {showPricingTips && (
+            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-4 text-xs text-[var(--color-muted)] leading-relaxed space-y-4">
+              <div>
+                <p className="font-medium text-[var(--color-charcoal)] mb-1">What renters are thinking about</p>
+                <p>Pre-brides on WhoGetsYou are comparing rental cost to alterations + dry cleaning on a secondhand dress — typically $300–$600. Your rental price competes with that math. The closer you are to that range, the easier the decision is for her.</p>
+              </div>
+              <div>
+                <p className="font-medium text-[var(--color-charcoal)] mb-1">Fit is already handled — price is the last variable</p>
+                <p>Because WhoGetsYou matches by measurements first, pre-brides who see your dress already fit your dress. You&apos;re not competing against 200 listings. You&apos;re the shortlist. A competitive price closes it.</p>
+              </div>
+              <div>
+                <p className="font-medium text-[var(--color-charcoal)] mb-1">You keep the dress</p>
+                <p>This isn&apos;t consignment. Your dress comes back to you. Whatever you earn is clear profit from something you weren&apos;t using.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Borough */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[var(--color-charcoal)]">Wedding borough</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--color-charcoal)]">Your borough</label>
           <select
-            value={form.wedding_borough}
-            onChange={(e) => setForm((f) => ({ ...f, wedding_borough: e.target.value }))}
+            value={form.borough}
+            onChange={(e) => setForm((f) => ({ ...f, borough: e.target.value }))}
             className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors"
           >
             <option value="">Select borough</option>
             {NYC_BOROUGHS.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
-          {errors.wedding_borough && <p className="mt-1 text-xs text-red-500">{errors.wedding_borough}</p>}
+          {errors.borough && <p className="mt-1 text-xs text-red-500">{errors.borough}</p>}
         </div>
 
         {/* Date */}

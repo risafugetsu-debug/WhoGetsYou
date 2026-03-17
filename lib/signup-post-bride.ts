@@ -52,8 +52,8 @@ export async function submitPostBride(data: PostBrideFormData): Promise<{ error:
       materials: data.styleProfile.materials,
       condition: data.condition,
       condition_notes: data.conditionNotes,
-      wedding_city: data.weddingCity,
-      wedding_borough: data.weddingBorough,
+      city: data.weddingCity,
+      borough: data.weddingBorough,
       wedding_date: data.weddingDate,
     })
     .select('id')

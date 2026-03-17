@@ -1,7 +1,6 @@
 'use client';
 
 import type { UserRole, PreBrideMeasurements, PostBrideMeasurements } from './types';
-import { isPreBrideMeasurements } from './types';
 
 interface Step3MeasurementsProps {
   role: UserRole;
@@ -57,49 +56,57 @@ const PRE_BRIDE_FIELDS: { key: keyof PreBrideMeasurements; label: string; guide:
   },
 ];
 
-// Dress measurement guides (post-bride)
+// Flat garment measurement guides (post-bride) — measure the dress, not the body
 const POST_BRIDE_FIELDS: { key: keyof PostBrideMeasurements; label: string; guide: string }[] = [
   {
     key: 'dressNeckToWaist',
-    label: 'Neck to Waist',
-    guide: 'Lay dress flat. Measure from the center back neckline edge down to the waist seam.',
+    label: 'Dress Neck to Waist',
+    guide: 'Lay dress flat. Measure from the center-back neckline edge straight down to the waist seam.',
   },
   {
     key: 'dressShoulderWidth',
-    label: 'Shoulder Width',
-    guide: 'Measure across the back bodice from one shoulder seam tip to the other.',
+    label: 'Dress Shoulder Width',
+    guide: 'Lay dress flat. Measure across the back bodice from one shoulder seam tip to the other.',
   },
   {
     key: 'dressBust',
-    label: 'Bust',
-    guide: 'Measure across the bodice at the fullest bust point, edge to edge, then double it.',
+    label: 'Dress Bust',
+    guide: 'Lay dress flat. Measure across the bodice at the fullest bust point, edge to edge, then double it for the full circumference.',
   },
   {
     key: 'dressUnderBust',
-    label: 'Under Bust',
-    guide: 'Measure the bodice just below the bust/underwire seam, edge to edge, then double it.',
+    label: 'Dress Under Bust',
+    guide: 'Lay dress flat. Measure just below the bust/underwire seam, edge to edge, then double it.',
   },
   {
     key: 'dressWaist',
-    label: 'Waist',
-    guide: 'Measure the waist seam edge to edge, then double it.',
+    label: 'Dress Waist',
+    guide: 'Lay dress flat. Measure the waist seam edge to edge, then double it.',
   },
   {
     key: 'dressHighHip',
-    label: 'High Hip',
-    guide: 'Measure 4 inches below the waist seam around the skirt, edge to edge, then double it.',
+    label: 'Dress High Hip',
+    guide: 'Lay dress flat. Measure the skirt 4 inches below the waist seam, edge to edge, then double it.',
   },
   {
     key: 'dressHips',
-    label: 'Hips',
-    guide: 'Measure the widest part of the hip area, edge to edge, then double it.',
+    label: 'Dress Hips',
+    guide: 'Lay dress flat. Measure the widest part of the hip area, edge to edge, then double it.',
   },
   {
     key: 'dressArmLength',
-    label: 'Arm Length',
-    guide: 'If the dress has sleeves, measure from shoulder seam to wrist edge. Enter 0 if sleeveless.',
+    label: 'Sleeve Length',
+    guide: 'If the dress has sleeves, measure from shoulder seam to wrist edge. Leave blank if sleeveless.',
   },
 ];
+
+function convertMeasurement(val: string, from: 'cm' | 'in', to: 'cm' | 'in'): string {
+  if (!val) return '';
+  const num = parseFloat(val);
+  if (isNaN(num) || num === 0) return val;
+  const converted = from === 'in' ? num * 2.54 : num / 2.54;
+  return String(Math.round(converted * 10) / 10);
+}
 
 export default function Step3Measurements({ role, data, onChange, errors }: Step3MeasurementsProps) {
   const isPreBride = role === 'pre-bride';
@@ -109,8 +116,37 @@ export default function Step3Measurements({ role, data, onChange, errors }: Step
     onChange({ ...data, [key]: value } as PreBrideMeasurements | PostBrideMeasurements);
   }
 
-  function toggleUnit(unit: 'cm' | 'in') {
-    onChange({ ...data, unitSystem: unit } as PreBrideMeasurements | PostBrideMeasurements);
+  function toggleUnit(to: 'cm' | 'in') {
+    const from = values.unitSystem as 'cm' | 'in';
+    if (from === to) return;
+
+    // Convert height
+    let heightUpdates: Record<string, string> = {};
+    if (from === 'cm' && to === 'in') {
+      const cm = parseFloat(values.heightCm);
+      if (!isNaN(cm) && cm > 0) {
+        const totalIn = cm / 2.54;
+        heightUpdates = { heightFeet: String(Math.floor(totalIn / 12)), heightInches: String(Math.round(totalIn % 12)) };
+      }
+    } else {
+      const ft = parseInt(values.heightFeet, 10);
+      const inches = parseInt(values.heightInches, 10);
+      if (!isNaN(ft) && !isNaN(inches)) {
+        heightUpdates = { heightCm: String(Math.round((ft * 12 + inches) * 2.54)) };
+      }
+    }
+
+    // Convert measurement fields
+    const measureKeys = isPreBride
+      ? ['bust', 'underBust', 'waist', 'highHip', 'hips', 'neckToWaist', 'shoulderWidth', 'armLength']
+      : ['dressBust', 'dressUnderBust', 'dressWaist', 'dressHighHip', 'dressHips', 'dressNeckToWaist', 'dressShoulderWidth', 'dressArmLength', 'heelHeight'];
+
+    const measureUpdates: Record<string, string> = {};
+    for (const key of measureKeys) {
+      measureUpdates[key] = convertMeasurement(values[key] ?? '', from, to);
+    }
+
+    onChange({ ...data, unitSystem: to, ...heightUpdates, ...measureUpdates } as PreBrideMeasurements | PostBrideMeasurements);
   }
 
   const unitSystem = values.unitSystem as 'cm' | 'in';
@@ -155,11 +191,11 @@ export default function Step3Measurements({ role, data, onChange, errors }: Step
         <label className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1 block">
           Height
         </label>
-        {isPreBride && unitSystem === 'cm' ? (
+        {unitSystem === 'cm' ? (
           <div className="flex items-center gap-2">
             <input
               type="number"
-              value={isPreBrideMeasurements(data) ? data.heightCm : ''}
+              value={values.heightCm ?? ''}
               min={100}
               max={250}
               step={1}
@@ -199,30 +235,52 @@ export default function Step3Measurements({ role, data, onChange, errors }: Step
         {errors.height && <p className="text-red-400 text-xs mt-1">{errors.height}</p>}
       </div>
 
-      {/* 8 measurements */}
+      {/* Heel height — post-bride only */}
+      {!isPreBride && (
+        <div>
+          <label className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1 block">
+            Heel Height <span className="normal-case font-normal">(optional)</span>
+          </label>
+          <p className="text-xs text-[var(--color-muted)] mb-1">Height of the heels you wore with the dress.</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.5"
+              min={0}
+              value={values.heelHeight ?? ''}
+              onChange={(e) => update('heelHeight', e.target.value)}
+              className={`${inputBase} border-[var(--color-border)]`}
+              placeholder="0"
+            />
+            <span className="text-xs text-[var(--color-muted)]">{unit}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Measurements */}
       <div className="space-y-5">
         {(isPreBride ? PRE_BRIDE_FIELDS : POST_BRIDE_FIELDS).map(({ key, label, guide }) => (
-          <div key={key}>
-            <div className="flex items-start justify-between gap-3 mb-1.5">
-              <label className="text-xs uppercase tracking-wider text-[var(--color-muted)] shrink-0">
+          <div key={key} className="flex items-start justify-between gap-4">
+            <div className="shrink-0">
+              <label className="text-xs uppercase tracking-wider text-[var(--color-muted)] block mb-1">
                 {label}
               </label>
-              <span className="text-xs text-[var(--color-muted)] text-right leading-snug max-w-[200px]">
-                {guide}
-              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.5"
+                  min={0}
+                  value={values[key] ?? ''}
+                  onChange={(e) => update(key, e.target.value)}
+                  className={`${inputBase} ${errors[key] ? 'border-red-300' : 'border-[var(--color-border)]'}`}
+                />
+                <span className="text-xs text-[var(--color-muted)]">{unit}</span>
+              </div>
+              {errors[key] && <p className="text-red-400 text-xs mt-1">{errors[key]}</p>}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.5"
-                min={0}
-                value={values[key] ?? ''}
-                onChange={(e) => update(key, e.target.value)}
-                className={`${inputBase} ${errors[key] ? 'border-red-300' : 'border-[var(--color-border)]'}`}
-              />
-              <span className="text-xs text-[var(--color-muted)]">{unit}</span>
-            </div>
-            {errors[key] && <p className="text-red-400 text-xs mt-1">{errors[key]}</p>}
+            <span className="text-xs text-[var(--color-muted)] text-right leading-snug max-w-[200px]">
+              {guide}
+            </span>
           </div>
         ))}
       </div>

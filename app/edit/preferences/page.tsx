@@ -10,7 +10,7 @@ interface FormState {
   necklines: string[];
   silhouettes: string[];
   materials: string[];
-  wedding_borough: string;
+  borough: string;
   wedding_date: string;
   date_undecided: boolean;
 }
@@ -21,7 +21,7 @@ export default function EditPreferencesPage() {
     necklines: [],
     silhouettes: [],
     materials: [],
-    wedding_borough: '',
+    borough: '',
     wedding_date: '',
     date_undecided: false,
   });
@@ -53,7 +53,7 @@ export default function EditPreferencesPage() {
           necklines: data.necklines ?? [],
           silhouettes: data.silhouettes ?? [],
           materials: data.materials ?? [],
-          wedding_borough: data.wedding_borough ?? '',
+          borough: data.borough ?? '',
           wedding_date: data.wedding_date ?? '',
           date_undecided: data.date_undecided ?? false,
         });
@@ -94,7 +94,7 @@ export default function EditPreferencesPage() {
       necklines: form.necklines,
       silhouettes: form.silhouettes,
       materials: form.materials,
-      wedding_borough: form.wedding_borough,
+      borough: form.borough,
       wedding_date: form.date_undecided ? null : (form.wedding_date || null),
       date_undecided: form.date_undecided,
     }).eq('user_id', session.user.id);
@@ -191,11 +191,11 @@ export default function EditPreferencesPage() {
         {/* Borough */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[var(--color-charcoal)]">
-            Wedding borough <span className="text-[var(--color-muted)] font-normal">(optional)</span>
+            Your borough <span className="text-[var(--color-muted)] font-normal">(optional)</span>
           </label>
           <select
-            value={form.wedding_borough}
-            onChange={(e) => setForm((f) => ({ ...f, wedding_borough: e.target.value }))}
+            value={form.borough}
+            onChange={(e) => setForm((f) => ({ ...f, borough: e.target.value }))}
             className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors"
           >
             <option value="">Not decided</option>

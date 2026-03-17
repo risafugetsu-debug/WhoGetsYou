@@ -462,7 +462,7 @@ function MatchCard({
 
         <div className="mt-3 space-y-1 text-xs text-[var(--color-muted)]">
           <p>Condition: <span className="text-[var(--color-charcoal)]">{listing.condition}</span></p>
-          <p>Location: <span className="text-[var(--color-charcoal)]">{listing.wedding_borough}, NYC</span></p>
+          <p>Location: <span className="text-[var(--color-charcoal)]">{listing.borough}, NYC</span></p>
           {(listing.price_1day || listing.retail_price) && (
             <p className="flex items-baseline gap-2">
               {listing.price_1day && (

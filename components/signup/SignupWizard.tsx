@@ -91,10 +91,14 @@ export default function SignupWizard() {
         if (!m.waist || parseFloat(m.waist) <= 0) errs.waist = 'Required';
         if (!m.hips || parseFloat(m.hips) <= 0) errs.hips = 'Required';
       } else {
-        const ft = parseInt(m.heightFeet, 10);
-        const inches = parseInt(m.heightInches, 10);
-        if (!m.heightFeet || !m.heightInches || isNaN(ft) || ft < 3 || ft > 8 || isNaN(inches) || inches < 0 || inches > 11)
-          errs.height = 'Enter a valid height (3–8 ft, 0–11 in)';
+        if (m.unitSystem === 'cm') {
+          if (!m.heightCm || parseFloat(m.heightCm) < 100) errs.height = 'Enter a valid height in cm';
+        } else {
+          const ft = parseInt(m.heightFeet, 10);
+          const inches = parseInt(m.heightInches, 10);
+          if (!m.heightFeet || !m.heightInches || isNaN(ft) || ft < 3 || ft > 8 || isNaN(inches) || inches < 0 || inches > 11)
+            errs.height = 'Enter a valid height (3–8 ft, 0–11 in)';
+        }
         if (!m.dressBust || parseFloat(m.dressBust) <= 0) errs.dressBust = 'Required';
         if (!m.dressWaist || parseFloat(m.dressWaist) <= 0) errs.dressWaist = 'Required';
         if (!m.dressHips || parseFloat(m.dressHips) <= 0) errs.dressHips = 'Required';
@@ -156,7 +160,7 @@ export default function SignupWizard() {
       const emptyStep3: PreBrideMeasurements | PostBrideMeasurements =
         r === 'pre-bride'
           ? { unitSystem: 'in', heightCm: '', heightFeet: '', heightInches: '', bust: '', underBust: '', waist: '', highHip: '', hips: '', neckToWaist: '', shoulderWidth: '', armLength: '' }
-          : { unitSystem: 'in', heightFeet: '', heightInches: '', dressBust: '', dressUnderBust: '', dressWaist: '', dressHighHip: '', dressHips: '', dressNeckToWaist: '', dressShoulderWidth: '', dressArmLength: '' };
+          : { unitSystem: 'in', heightCm: '', heightFeet: '', heightInches: '', dressBust: '', dressUnderBust: '', dressWaist: '', dressHighHip: '', dressHips: '', dressNeckToWaist: '', dressShoulderWidth: '', dressArmLength: '', heelHeight: '' };
       next = { ...next, step3: emptyStep3 };
     }
 

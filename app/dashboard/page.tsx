@@ -31,7 +31,7 @@ interface GownListing {
   materials: string[];
   condition: string;
   condition_notes: string;
-  wedding_borough: string;
+  borough: string;
   wedding_date: string;
   price_1day: number | null;
   price_3day: number | null;
@@ -44,7 +44,7 @@ interface StylePreferences {
   necklines: string[];
   silhouettes: string[];
   materials: string[];
-  wedding_borough: string;
+  borough: string;
   wedding_date: string | null;
   date_undecided: boolean;
 }
@@ -256,7 +256,7 @@ export default function DashboardPage() {
               {listing.condition_notes && (
                 <Stat label="Notes" value={listing.condition_notes} />
               )}
-              <Stat label="Wedding location" value={`${listing.wedding_borough}, New York`} />
+              <Stat label="Location" value={`${listing.borough}, New York`} />
               <Stat label="Wedding date" value={new Date(listing.wedding_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
               {(listing.retail_price || listing.price_1day || listing.price_3day || listing.price_7day) && (
                 <div>
@@ -322,8 +322,8 @@ export default function DashboardPage() {
               ) : preferences.wedding_date ? (
                 <Stat label="Wedding date" value={new Date(preferences.wedding_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
               ) : null}
-              {preferences.wedding_borough && (
-                <Stat label="Wedding location" value={`${preferences.wedding_borough}, New York`} />
+              {preferences.borough && (
+                <Stat label="Location" value={`${preferences.borough}, New York`} />
               )}
             </div>
           </Section>

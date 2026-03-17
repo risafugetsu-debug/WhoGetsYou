@@ -70,9 +70,10 @@ export interface PreBrideMeasurements {
   armLength: string;
 }
 
-// Post-bride: dress measurements (Height ft/in + 8 dress measurements)
+// Post-bride: dress measurements (Height cm or ft/in toggle + 8 dress measurements)
 export interface PostBrideMeasurements {
   unitSystem: 'cm' | 'in';
+  heightCm: string;
   heightFeet: string;
   heightInches: string;
   dressBust: string;         // discriminator — 'dressBust' in m = post-bride
@@ -83,6 +84,7 @@ export interface PostBrideMeasurements {
   dressNeckToWaist: string;
   dressShoulderWidth: string;
   dressArmLength: string;
+  heelHeight: string;
 }
 
 // Pre-bride: multi-select necklines, silhouettes, materials

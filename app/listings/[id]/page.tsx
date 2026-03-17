@@ -334,10 +334,10 @@ export default function ListingDetailPage() {
           )}
 
           <div className="space-y-2">
-            {listing.wedding_borough && (
+            {listing.borough && (
               <div>
                 <p className="text-xs text-[var(--color-muted)]">Pickup area</p>
-                <p className="mt-0.5 text-sm text-[var(--color-charcoal)]">{listing.wedding_borough}, New York</p>
+                <p className="mt-0.5 text-sm text-[var(--color-charcoal)]">{listing.borough}, New York</p>
               </div>
             )}
             {availabilityText && (
