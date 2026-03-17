@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '⚠️  Session ending — run /handoff to update HANDOFF.md before you go.'"
+          }
+        ]
+      }
+    ]
+  }
+}

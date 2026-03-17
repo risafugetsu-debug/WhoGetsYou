@@ -83,6 +83,18 @@ This codebase separates concerns so that server-side logic handles data and rout
 ### Styling
 - Use Tailwind CSS utility classes; avoid custom CSS unless unavoidable
 - Dark mode via CSS custom properties (`--background`, `--foreground`)
+- **Always use the project's CSS variables for color** — never hardcode hex values
+
+| Variable | Value | Use |
+|---|---|---|
+| `--color-rose` | `#c4848a` | Primary CTAs, active states |
+| `--color-rose-dark` | `#a96a70` | Hover states on CTAs |
+| `--color-ivory` | `#faf8f5` | Page backgrounds |
+| `--color-charcoal` | `#2d2d2d` | Body text, headings |
+| `--color-blush` | `#f5e6e8` | Light accent backgrounds |
+| `--color-blush-dark` | `#e8c5ca` | Darker blush accents |
+| `--color-muted` | `#6b6b6b` | Secondary/helper text |
+| `--color-border` | `#e8e0db` | Borders, dividers |
 
 ### Code Style
 - Keep files small and focused — one responsibility per file
