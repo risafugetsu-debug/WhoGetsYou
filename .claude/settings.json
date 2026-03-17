@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== docs/state.md ===' && cat docs/state.md"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",
