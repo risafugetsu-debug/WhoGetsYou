@@ -17,15 +17,19 @@ export default function HeroCTAs() {
     setSubmitting(true);
     setError('');
 
-    const res = await fetch('/api/waitlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), first_name: firstName.trim() || null }),
-    });
-
-    setSubmitting(false);
-    if (!res.ok) { setError('Something went wrong. Please try again.'); return; }
-    setSubmitted(true);
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), first_name: firstName.trim() || null }),
+      });
+      setSubmitting(false);
+      if (!res.ok) { setError('Something went wrong. Please try again.'); return; }
+      setSubmitted(true);
+    } catch {
+      setSubmitting(false);
+      setError('Something went wrong. Please try again.');
+    }
   }
 
   return (
