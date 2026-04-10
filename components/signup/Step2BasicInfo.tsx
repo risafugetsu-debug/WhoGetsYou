@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { BasicInfoData, EthnicityOption } from './types';
-import { ETHNICITY_OPTIONS } from './types';
+import type { BasicInfoData } from './types';
 
 interface Step2BasicInfoProps {
   data: BasicInfoData;
@@ -124,27 +123,6 @@ export default function Step2BasicInfo({ data, onChange, errors }: Step2BasicInf
         inputProps={{ autoComplete: 'new-password' }}
       />
 
-      <div>
-        <label htmlFor="ethnicity" className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-1 block">
-          Ethnicity
-        </label>
-        <select
-          id="ethnicity"
-          value={data.ethnicity ?? ''}
-          onChange={(e) =>
-            onChange({ ...data, ethnicity: (e.target.value as EthnicityOption) || null })
-          }
-          className={`${inputBase} border-[var(--color-border)]`}
-        >
-          <option value="">Select (optional)</option>
-          {ETHNICITY_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-        <p className="text-xs text-[var(--color-muted)] mt-1">
-          Optional — used only for analytics.
-        </p>
-      </div>
     </div>
   );
 }

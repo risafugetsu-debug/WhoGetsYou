@@ -12,16 +12,11 @@ export async function signupWizard(
 ): Promise<{ error: string | null }> {
   const { step1, step2, step3, step4, step5, step6 } = formData;
   const role = step1.role!;
-  const { firstName, email, ethnicity } = step2;
+  const { firstName, email } = step2;
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        ethnicity: ethnicity ?? null,
-      },
-    },
   });
 
   if (authError || !authData.user) {

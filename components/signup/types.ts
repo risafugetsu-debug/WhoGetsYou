@@ -3,20 +3,6 @@ export type { NecklineStyle, SilhouetteStyle, FabricMaterial };
 
 export type UserRole = 'pre-bride' | 'post-bride';
 
-export type EthnicityOption =
-  | 'East Asian'
-  | 'Southeast Asian'
-  | 'South Asian'
-  | 'Central Asian'
-  | 'Black or African American'
-  | 'Hispanic or Latino'
-  | 'Middle Eastern or North African'
-  | 'Native American or Alaska Native'
-  | 'Native Hawaiian or Pacific Islander'
-  | 'White'
-  | 'Multiracial'
-  | 'Prefer not to say';
-
 export type DressStyle =
   | 'Ballgown'
   | 'A-line'
@@ -51,7 +37,6 @@ export interface BasicInfoData {
   email: string;
   password: string;
   confirmPassword: string;
-  ethnicity: EthnicityOption | null;
 }
 
 // Pre-bride: body measurements (Height cm or ft/in toggle + 8 body measurements)
@@ -169,17 +154,3 @@ export const DRESS_STYLES: DressStyle[] = [
   'Boho',
 ];
 
-export const ETHNICITY_OPTIONS: EthnicityOption[] = [
-  'East Asian',
-  'Southeast Asian',
-  'South Asian',
-  'Central Asian',
-  'Black or African American',
-  'Hispanic or Latino',
-  'Middle Eastern or North African',
-  'Native American or Alaska Native',
-  'Native Hawaiian or Pacific Islander',
-  'White',
-  'Multiracial',
-  'Prefer not to say',
-];

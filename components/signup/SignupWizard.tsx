@@ -39,7 +39,6 @@ const INITIAL_FORM: SignupFormData = {
     email: '',
     password: '',
     confirmPassword: '',
-    ethnicity: null,
   },
   step3: null,
   step4: null,
