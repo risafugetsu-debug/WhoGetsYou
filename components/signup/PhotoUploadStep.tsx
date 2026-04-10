@@ -2,153 +2,132 @@
 
 import { useRef } from 'react';
 
-interface MultiPhotoUploadProps {
-  mode: 'multi';
-  photos: File[];
-  onPhotosChange: (photos: File[]) => void;
-  error?: string;
+export interface ExistingPhoto {
+  id: string;
+  signedUrl: string;
+}
+
+interface PhotoUploadStepProps {
   title: string;
   description: string;
+  hint?: string;
+  optional?: boolean;
   minPhotos?: number;
-}
-
-interface SinglePhotoUploadProps {
-  mode: 'single';
-  photo: File | null;
-  onPhotoChange: (photo: File | null) => void;
+  maxPhotos?: number;
+  existingPhotos?: ExistingPhoto[];
+  onRemoveExisting?: (id: string) => void;
+  newPhotos: File[];
+  onNewPhotosChange: (photos: File[]) => void;
   error?: string;
-  title: string;
-  description: string;
 }
 
-type PhotoUploadStepProps = MultiPhotoUploadProps | SinglePhotoUploadProps;
-
-export default function PhotoUploadStep(props: PhotoUploadStepProps) {
+export default function PhotoUploadStep({
+  title,
+  description,
+  hint,
+  optional = false,
+  minPhotos,
+  maxPhotos = 10,
+  existingPhotos = [],
+  onRemoveExisting,
+  newPhotos,
+  onNewPhotosChange,
+  error,
+}: PhotoUploadStepProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const effectiveMin = minPhotos ?? (optional ? 0 : 1);
+  const totalCount = existingPhotos.length + newPhotos.length;
+  const canAddMore = totalCount < maxPhotos;
 
-  if (props.mode === 'multi') {
-    const { photos, onPhotosChange, error, title, description, minPhotos = 1 } = props;
-
-    function handleFiles(files: FileList | null) {
-      if (!files) return;
-      // TODO: Replace with Supabase Storage upload when backend is connected
-      const newFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
-      onPhotosChange([...photos, ...newFiles]);
-    }
-
-    function removePhoto(index: number) {
-      onPhotosChange(photos.filter((_, i) => i !== index));
-    }
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-light tracking-wide text-[var(--color-charcoal)]">{title}</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">{description}</p>
-          {minPhotos > 0 && (
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              At least {minPhotos} photo required
-            </p>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[var(--color-border)] py-12 text-[var(--color-muted)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-charcoal)]"
-        >
-          <span className="text-3xl">+</span>
-          <span className="text-sm">Click to add photos</span>
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-
-        {photos.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            {photos.map((file, i) => {
-              const url = URL.createObjectURL(file);
-              return (
-                <div key={i} className="group relative aspect-square overflow-hidden rounded-xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Gown photo ${i + 1}`} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(i)}
-                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {error && <p className="text-xs text-red-500">{error}</p>}
-      </div>
-    );
+  function handleFiles(files: FileList | null) {
+    if (!files) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const remaining = maxPhotos - totalCount;
+    onNewPhotosChange([...newPhotos, ...images.slice(0, remaining)]);
   }
 
-  const { photo, onPhotoChange, error, title, description } = props;
-
-  function handleFile(files: FileList | null) {
-    if (!files || !files[0]) return;
-    // TODO: Replace with Supabase Storage upload when backend is connected
-    if (files[0].type.startsWith('image/')) {
-      onPhotoChange(files[0]);
-    }
+  function removeNew(index: number) {
+    onNewPhotosChange(newPhotos.filter((_, i) => i !== index));
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-light tracking-wide text-[var(--color-charcoal)]">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{description}</p>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-base font-medium text-[var(--color-charcoal)]">{title}</h3>
+          {optional && (
+            <span className="text-xs text-[var(--color-muted)]">optional</span>
+          )}
+        </div>
+        <p className="mt-0.5 text-sm text-[var(--color-muted)]">{description}</p>
+        {hint && (
+          <p className="mt-1 text-xs text-[var(--color-muted)] italic">{hint}</p>
+        )}
+        {!optional && effectiveMin > 0 && (
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            At least {effectiveMin} photo required
+          </p>
+        )}
       </div>
 
-      {photo ? (
-        <div className="relative mx-auto w-48">
-          <div className="aspect-square overflow-hidden rounded-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={URL.createObjectURL(photo)}
-              alt="Profile photo"
-              className="h-full w-full object-cover"
-            />
-          </div>
+      {(existingPhotos.length > 0 || newPhotos.length > 0) && (
+        <div className="grid grid-cols-3 gap-2">
+          {existingPhotos.map((photo) => (
+            <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--color-blush)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.signedUrl} alt="Gown photo" className="h-full w-full object-cover" />
+              {onRemoveExisting && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveExisting(photo.id)}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          {newPhotos.map((file, i) => {
+            const url = URL.createObjectURL(file);
+            return (
+              <div key={`new-${i}`} className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--color-blush)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`New photo ${i + 1}`} className="h-full w-full object-cover" />
+                <div className="absolute left-1.5 top-1.5 rounded-full bg-[var(--color-rose)] px-1.5 py-0.5 text-[10px] text-white">New</div>
+                <button
+                  type="button"
+                  onClick={() => removeNew(i)}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {canAddMore && (
+        <>
           <button
             type="button"
-            onClick={() => onPhotoChange(null)}
-            className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-charcoal)] text-[var(--color-ivory)] text-sm"
+            onClick={() => inputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] py-4 text-sm text-[var(--color-muted)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-rose)]"
           >
-            ✕
+            + Add {totalCount > 0 ? 'more ' : ''}photos
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="mx-auto flex aspect-square w-48 flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed border-[var(--color-border)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-charcoal)]"
-        >
-          <span className="text-3xl">+</span>
-          <span className="text-xs text-center px-4">Add photo</span>
-        </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+          />
+        </>
       )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files)}
-      />
 
-      {error && <p className="text-center text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
