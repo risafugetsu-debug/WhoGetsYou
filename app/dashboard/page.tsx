@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [preferences, setPreferences] = useState<StylePreferences | null>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [hasWornPhoto, setHasWornPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -104,11 +105,15 @@ export default function DashboardPage() {
         if (data?.id) {
           const { data: photosData } = await supabase
             .from('gown_photos')
-            .select('storage_path')
+            .select('storage_path, category')
             .eq('listing_id', data.id)
             .order('created_at');
 
-          const paths = (photosData ?? []).map((p: { storage_path: string }) => p.storage_path);
+          setHasWornPhoto(
+            (photosData ?? []).some((p: { storage_path: string; category: string }) => p.category === 'worn')
+          );
+
+          const paths = (photosData ?? []).map((p: { storage_path: string; category: string }) => p.storage_path);
           if (paths.length > 0) {
             const { data: signedData } = await supabase.storage
               .from('gown-photos')
@@ -327,6 +332,21 @@ export default function DashboardPage() {
               )}
             </div>
           </Section>
+        )}
+
+        {profile.role === 'post-bride' && listing && !hasWornPhoto && (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4">
+            <p className="text-sm font-medium text-[var(--color-charcoal)]">Add a wedding day photo</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)] leading-relaxed">
+              Listings with a worn photo get more interest. Share one from your wedding day or bridal shoot.
+            </p>
+            <Link
+              href="/edit/listing"
+              className="mt-3 inline-block rounded-full border border-[var(--color-rose)] px-4 py-1.5 text-xs text-[var(--color-rose)] transition-colors hover:bg-[var(--color-rose)] hover:text-white"
+            >
+              Add photo →
+            </Link>
+          </div>
         )}
 
         {profile.role === 'pre-bride' ? (
