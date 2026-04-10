@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 
 export interface ExistingPhoto {
   id: string;
@@ -38,6 +38,10 @@ export default function PhotoUploadStep({
   const effectiveMin = minPhotos ?? (optional ? 0 : 1);
   const totalCount = existingPhotos.length + newPhotos.length;
   const canAddMore = totalCount < maxPhotos;
+
+  const newPhotoUrls = useMemo(() => {
+    return newPhotos.map((file) => URL.createObjectURL(file));
+  }, [newPhotos]);
 
   function handleFiles(files: FileList | null) {
     if (!files) return;
@@ -87,8 +91,8 @@ export default function PhotoUploadStep({
               )}
             </div>
           ))}
-          {newPhotos.map((file, i) => {
-            const url = URL.createObjectURL(file);
+          {newPhotos.map((_, i) => {
+            const url = newPhotoUrls[i];
             return (
               <div key={`new-${i}`} className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--color-blush)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
