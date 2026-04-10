@@ -11,6 +11,7 @@ import {
   CONDITION_OPTIONS,
   NYC_BOROUGHS,
 } from '@/types/user';
+import PhotoUploadStep, { ExistingPhoto } from '@/components/signup/PhotoUploadStep';
 
 interface FormState {
   neckline: string;
@@ -24,12 +25,6 @@ interface FormState {
   price_3day: string;
   price_7day: string;
   retail_price: string;
-}
-
-interface ExistingPhoto {
-  id: string;
-  storage_path: string;
-  signedUrl: string;
 }
 
 export default function EditListingPage() {
@@ -48,17 +43,24 @@ export default function EditListingPage() {
     retail_price: '',
   });
   const [listingId, setListingId] = useState<string | null>(null);
-  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
-  const [deletedPhotoIds, setDeletedPhotoIds] = useState<Set<string>>(new Set());
-  const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
-  const [newPhotoPreviews, setNewPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
-  const [photoError, setPhotoError] = useState('');
   const [showPricingTips, setShowPricingTips] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [existingWorn, setExistingWorn] = useState<ExistingPhoto[]>([]);
+  const [existingDetail, setExistingDetail] = useState<ExistingPhoto[]>([]);
+  const [existingCondition, setExistingCondition] = useState<ExistingPhoto[]>([]);
+  const [deletedPhotoIds, setDeletedPhotoIds] = useState<Set<string>>(new Set());
+  const [newWornFiles, setNewWornFiles] = useState<File[]>([]);
+  const [newDetailFiles, setNewDetailFiles] = useState<File[]>([]);
+  const [newConditionFiles, setNewConditionFiles] = useState<File[]>([]);
+  const [existingVideoPath, setExistingVideoPath] = useState<string | null>(null);
+  const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
+  const [newVideoFile, setNewVideoFile] = useState<File | null>(null);
+  const [deleteVideo, setDeleteVideo] = useState(false);
+  const [photoErrors, setPhotoErrors] = useState<{ worn?: string; detail?: string }>({});
 
   useEffect(() => {
     async function load() {
@@ -97,11 +99,12 @@ export default function EditListingPage() {
 
         const { data: photosData } = await supabase
           .from('gown_photos')
-          .select('id, storage_path')
+          .select('id, storage_path, category')
           .eq('listing_id', data.id)
           .order('created_at');
 
-        const photos = (photosData ?? []) as { id: string; storage_path: string }[];
+        const photos = (photosData ?? []) as { id: string; storage_path: string; category: string }[];
+
         if (photos.length > 0) {
           const { data: signedData } = await supabase.storage
             .from('gown-photos')
@@ -113,13 +116,28 @@ export default function EditListingPage() {
               .map((e) => [e.path, e.signedUrl])
           );
 
-          setExistingPhotos(
-            photos.map((p) => ({
-              id: p.id,
-              storage_path: p.storage_path,
-              signedUrl: urlMap.get(p.storage_path) ?? '',
-            }))
-          );
+          const toExisting = (p: { id: string; storage_path: string }) => ({
+            id: p.id,
+            signedUrl: urlMap.get(p.storage_path) ?? '',
+          });
+
+          setExistingWorn(photos.filter((p) => p.category === 'worn').map(toExisting));
+          setExistingDetail(photos.filter((p) => p.category === 'detail').map(toExisting));
+          setExistingCondition(photos.filter((p) => p.category === 'condition').map(toExisting));
+        }
+
+        const { data: videoData } = await supabase
+          .from('gown_videos')
+          .select('storage_path')
+          .eq('listing_id', data.id)
+          .maybeSingle();
+
+        if (videoData?.storage_path) {
+          setExistingVideoPath(videoData.storage_path);
+          const { data: signedVideo } = await supabase.storage
+            .from('gown-videos')
+            .createSignedUrl(videoData.storage_path, 3600);
+          if (signedVideo?.signedUrl) setExistingVideoUrl(signedVideo.signedUrl);
         }
       }
 
@@ -137,25 +155,6 @@ export default function EditListingPage() {
     }));
   }
 
-  function removeExistingPhoto(id: string) {
-    setDeletedPhotoIds((prev) => new Set([...prev, id]));
-  }
-
-  function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setNewPhotoFiles((prev) => [...prev, ...files]);
-    setNewPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    setPhotoError('');
-    e.target.value = '';
-  }
-
-  function removeNewPhoto(index: number) {
-    URL.revokeObjectURL(newPhotoPreviews[index]);
-    setNewPhotoFiles((prev) => prev.filter((_, i) => i !== index));
-    setNewPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
-  }
-
   function validate(): boolean {
     const e: Partial<Record<keyof FormState, string>> = {};
     if (!form.neckline) e.neckline = 'Required';
@@ -166,11 +165,14 @@ export default function EditListingPage() {
     if (!form.wedding_date) e.wedding_date = 'Required';
     setErrors(e);
 
-    const totalPhotos = existingPhotos.filter((p) => !deletedPhotoIds.has(p.id)).length + newPhotoFiles.length;
-    const pErr = totalPhotos === 0 ? 'At least one photo is required' : '';
-    setPhotoError(pErr);
+    const newPhotoErrors: { worn?: string; detail?: string } = {};
+    const wornCount = existingWorn.filter((p) => !deletedPhotoIds.has(p.id)).length + newWornFiles.length;
+    const detailCount = existingDetail.filter((p) => !deletedPhotoIds.has(p.id)).length + newDetailFiles.length;
+    if (wornCount < 1) newPhotoErrors.worn = 'At least one worn photo is required';
+    if (detailCount < 2) newPhotoErrors.detail = 'At least two dress photos are required';
+    setPhotoErrors(newPhotoErrors);
 
-    return Object.keys(e).length === 0 && pErr === '';
+    return Object.keys(e).length === 0 && Object.keys(newPhotoErrors).length === 0;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -195,21 +197,47 @@ export default function EditListingPage() {
       retail_price: form.retail_price ? parseFloat(form.retail_price) : null,
     }).eq('user_id', session.user.id);
 
+    async function uploadPhotos(files: File[], category: 'worn' | 'detail' | 'condition') {
+      for (const file of files) {
+        const ext = file.name.split('.').pop() ?? 'jpg';
+        const path = `${listingId}/${category}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('gown-photos').upload(path, file);
+        if (!uploadError) {
+          await supabase.from('gown_photos').insert({ listing_id: listingId, storage_path: path, category });
+        }
+      }
+    }
+
     if (!error && listingId) {
-      // Delete removed photos
       if (deletedPhotoIds.size > 0) {
-        const toDelete = existingPhotos.filter((p) => deletedPhotoIds.has(p.id));
-        await supabase.storage.from('gown-photos').remove(toDelete.map((p) => p.storage_path));
+        const { data: deletedRows } = await supabase
+          .from('gown_photos')
+          .select('id, storage_path')
+          .in('id', [...deletedPhotoIds]);
+        if (deletedRows && deletedRows.length > 0) {
+          await supabase.storage.from('gown-photos').remove(deletedRows.map((r: { storage_path: string }) => r.storage_path));
+        }
         await supabase.from('gown_photos').delete().in('id', [...deletedPhotoIds]);
       }
 
-      // Upload new photos
-      for (const file of newPhotoFiles) {
-        const ext = file.name.split('.').pop() ?? 'jpg';
-        const path = `${session.user.id}/${listingId}/${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('gown-photos').upload(path, file);
-        if (!uploadError) {
-          await supabase.from('gown_photos').insert({ listing_id: listingId, storage_path: path });
+      await uploadPhotos(newWornFiles, 'worn');
+      await uploadPhotos(newDetailFiles, 'detail');
+      await uploadPhotos(newConditionFiles, 'condition');
+
+      if (deleteVideo && existingVideoPath) {
+        await supabase.storage.from('gown-videos').remove([existingVideoPath]);
+        await supabase.from('gown_videos').delete().eq('listing_id', listingId);
+        setExistingVideoPath(null);
+        setExistingVideoUrl(null);
+        setDeleteVideo(false);
+      }
+
+      if (newVideoFile) {
+        const ext = newVideoFile.name.split('.').pop() ?? 'mp4';
+        const path = `${listingId}/${Date.now()}.${ext}`;
+        const { error: videoUploadError } = await supabase.storage.from('gown-videos').upload(path, newVideoFile);
+        if (!videoUploadError) {
+          await supabase.from('gown_videos').upsert({ listing_id: listingId, storage_path: path });
         }
       }
     }
@@ -251,8 +279,6 @@ export default function EditListingPage() {
       </div>
     );
   }
-
-  const visibleExisting = existingPhotos.filter((p) => !deletedPhotoIds.has(p.id));
 
   return (
     <div className="mx-auto max-w-xl px-6 py-12">
@@ -494,59 +520,86 @@ export default function EditListingPage() {
         </div>
 
         {/* Photos */}
-        <div>
-          <p className="mb-1 text-sm font-medium text-[var(--color-charcoal)]">Photos</p>
-          {photoError
-            ? <p className="mb-3 text-xs text-red-500">{photoError}</p>
-            : <p className="mb-3 text-xs text-[var(--color-muted)]">At least one photo is required.</p>
-          }
+        <div className="space-y-8">
+          <h2 className="text-base font-medium text-[var(--color-charcoal)]">Photos</h2>
 
-          {(visibleExisting.length > 0 || newPhotoPreviews.length > 0) && (
-            <div className={`mb-3 grid gap-2 ${
-              visibleExisting.length + newPhotoPreviews.length === 1 ? 'grid-cols-1' :
-              visibleExisting.length + newPhotoPreviews.length === 2 ? 'grid-cols-2' :
-              'grid-cols-3'
-            }`}>
-              {visibleExisting.map((photo) => (
-                <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--color-blush)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.signedUrl} alt="Gown photo" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeExistingPhoto(photo.id)}
-                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {newPhotoPreviews.map((url, i) => (
-                <div key={`new-${i}`} className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--color-blush)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="New photo" className="h-full w-full object-cover" />
-                  <div className="absolute right-1.5 top-1.5 rounded-full bg-[var(--color-rose)] px-1.5 py-0.5 text-[10px] text-white">New</div>
-                  <button
-                    type="button"
-                    onClick={() => removeNewPhoto(i)}
-                    className="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+          <PhotoUploadStep
+            title="On the Day"
+            description="A photo of you wearing the dress — from your wedding day, bridal shoot, or fitting."
+            minPhotos={1}
+            existingPhotos={existingWorn.filter((p) => !deletedPhotoIds.has(p.id))}
+            onRemoveExisting={(id) => setDeletedPhotoIds((prev) => new Set([...prev, id]))}
+            newPhotos={newWornFiles}
+            onNewPhotosChange={setNewWornFiles}
+            error={photoErrors.worn}
+          />
+
+          <PhotoUploadStep
+            title="The Dress"
+            description="Show the dress in detail."
+            hint="Try: front, back, side, flat lay, close-up of detail"
+            minPhotos={2}
+            existingPhotos={existingDetail.filter((p) => !deletedPhotoIds.has(p.id))}
+            onRemoveExisting={(id) => setDeletedPhotoIds((prev) => new Set([...prev, id]))}
+            newPhotos={newDetailFiles}
+            onNewPhotosChange={setNewDetailFiles}
+            error={photoErrors.detail}
+          />
+
+          <PhotoUploadStep
+            title="Condition"
+            description="Photos of any wear, alterations, or damage."
+            optional
+            existingPhotos={existingCondition.filter((p) => !deletedPhotoIds.has(p.id))}
+            onRemoveExisting={(id) => setDeletedPhotoIds((prev) => new Set([...prev, id]))}
+            newPhotos={newConditionFiles}
+            onNewPhotosChange={setNewConditionFiles}
+          />
+
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-base font-medium text-[var(--color-charcoal)]">Video <span className="text-xs text-[var(--color-muted)] font-normal">optional</span></h3>
+              <p className="mt-0.5 text-sm text-[var(--color-muted)]">A short clip (up to 30 seconds) of the dress.</p>
             </div>
-          )}
 
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] py-5 text-sm text-[var(--color-muted)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-rose)]">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="sr-only"
-              onChange={handlePhotoFileChange}
-            />
-            + Add photos
-          </label>
+            {existingVideoUrl && !deleteVideo ? (
+              <div className="relative overflow-hidden rounded-xl bg-black aspect-video max-w-xs">
+                <video src={existingVideoUrl} controls className="h-full w-full object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setDeleteVideo(true)}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            ) : newVideoFile ? (
+              <div className="relative overflow-hidden rounded-xl bg-black aspect-video max-w-xs">
+                <video src={URL.createObjectURL(newVideoFile)} controls className="h-full w-full object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setNewVideoFile(null)}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] py-4 text-sm text-[var(--color-muted)] transition-colors hover:border-[var(--color-rose)] hover:text-[var(--color-rose)]">
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setNewVideoFile(file);
+                    e.target.value = '';
+                  }}
+                />
+                + Add video
+              </label>
+            )}
+          </div>
         </div>
 
         <button
