@@ -14,7 +14,10 @@ interface RawListing extends GownListing {
 interface PageData {
   listing: RawListing;
   postBrideFirstName: string;
-  photoUrls: string[];
+  wornUrls: string[];
+  detailUrls: string[];
+  conditionUrls: string[];
+  videoUrl: string | null;
   viewerRole: 'pre-bride' | 'post-bride';
   isOwnListing: boolean;
   fitScore: number;
@@ -53,7 +56,8 @@ export default function ListingDetailPage() {
   const [isInterested, setIsInterested] = useState(false);
   const [pending, setPending] = useState(false);
   const [interestError, setInterestError] = useState<string | null>(null);
-  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [selectedWornIndex, setSelectedWornIndex] = useState(0);
+  const [videoOpen, setVideoOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -77,20 +81,41 @@ export default function ListingDetailPage() {
       const viewerRole = profileRes.data?.role as 'pre-bride' | 'post-bride';
       const isOwnListing = listing.user_id === userId;
 
-      const [postBrideProfileRes, photosRes, postMeasurementsRes] = await Promise.all([
+      const [postBrideProfileRes, photosRes, postMeasurementsRes, videoRes] = await Promise.all([
         supabase.from('profiles').select('first_name').eq('id', listing.user_id).single(),
-        supabase.from('gown_photos').select('storage_path').eq('listing_id', id).order('created_at'),
+        supabase.from('gown_photos').select('storage_path, category').eq('listing_id', id).order('created_at'),
         supabase.from('measurements').select('*').eq('user_id', listing.user_id).single(),
+        supabase.from('gown_videos').select('storage_path').eq('listing_id', id).maybeSingle(),
       ]);
 
-      const storagePaths = (photosRes.data ?? []).map((p: { storage_path: string }) => p.storage_path);
+      const photos = (photosRes.data ?? []) as { storage_path: string; category: string }[];
+      const wornPaths = photos.filter((p) => p.category === 'worn').map((p) => p.storage_path);
+      const detailPaths = photos.filter((p) => p.category === 'detail').map((p) => p.storage_path);
+      const conditionPaths = photos.filter((p) => p.category === 'condition').map((p) => p.storage_path);
+      const allPaths = photos.map((p) => p.storage_path);
 
-      let photoUrls: string[] = [];
-      if (storagePaths.length > 0) {
+      let wornUrls: string[] = [];
+      let detailUrls: string[] = [];
+      let conditionUrls: string[] = [];
+
+      if (allPaths.length > 0) {
         const { data: signedData } = await supabase.storage
           .from('gown-photos')
-          .createSignedUrls(storagePaths, 3600);
-        photoUrls = (signedData ?? []).filter((e) => e.signedUrl).map((e) => e.signedUrl);
+          .createSignedUrls(allPaths, 3600);
+        const urlMap = new Map(
+          (signedData ?? []).filter((e) => e.signedUrl && e.path).map((e) => [e.path, e.signedUrl])
+        );
+        wornUrls = wornPaths.map((p) => urlMap.get(p) ?? '').filter(Boolean);
+        detailUrls = detailPaths.map((p) => urlMap.get(p) ?? '').filter(Boolean);
+        conditionUrls = conditionPaths.map((p) => urlMap.get(p) ?? '').filter(Boolean);
+      }
+
+      let videoUrl: string | null = null;
+      if (videoRes.data?.storage_path) {
+        const { data: signedVideo } = await supabase.storage
+          .from('gown-videos')
+          .createSignedUrl(videoRes.data.storage_path, 3600);
+        videoUrl = signedVideo?.signedUrl ?? null;
       }
 
       const postBrideMeasurements = postMeasurementsRes.data as MeasurementRow | null;
@@ -122,7 +147,10 @@ export default function ListingDetailPage() {
       setData({
         listing,
         postBrideFirstName: postBrideProfileRes.data?.first_name ?? 'A bride',
-        photoUrls,
+        wornUrls,
+        detailUrls,
+        conditionUrls,
+        videoUrl,
         viewerRole,
         isOwnListing,
         fitScore,
@@ -172,7 +200,7 @@ export default function ListingDetailPage() {
     );
   }
 
-  const { listing, postBrideFirstName, photoUrls, viewerRole, isOwnListing, fitScore, styleScore, combinedScore, fitLabel, postBrideMeasurements } = data;
+  const { listing, postBrideFirstName, wornUrls, detailUrls, conditionUrls, videoUrl, viewerRole, isOwnListing, fitScore, styleScore, combinedScore, fitLabel, postBrideMeasurements } = data;
   const showScore = viewerRole === 'pre-bride' && !isOwnListing;
   const availabilityText = formatAvailability(listing.available_from, listing.available_until);
 
@@ -206,36 +234,23 @@ export default function ListingDetailPage() {
       </div>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
-        {/* Photo gallery */}
-        <div className="flex gap-3">
-          {/* Vertical thumbnail strip */}
-          {photoUrls.length > 1 && (
-            <div className="flex w-[72px] shrink-0 flex-col gap-2 overflow-y-auto">
-              {photoUrls.map((url, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setSelectedPhotoIndex(i)}
-                  className={`aspect-square w-full shrink-0 overflow-hidden rounded-xl transition-all ${
-                    i === selectedPhotoIndex
-                      ? 'ring-2 ring-[var(--color-rose)] ring-offset-1'
-                      : 'opacity-50 hover:opacity-100'
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Media column */}
+        <div className="space-y-4">
 
-          {/* Main photo */}
-          <div className="flex-1 min-w-0">
+          {/* Hero: worn photo(s) with optional video overlay */}
+          <div className="relative">
             <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-[var(--color-blush)]">
-              {photoUrls.length > 0 ? (
+              {wornUrls.length > 0 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={photoUrls[selectedPhotoIndex]}
+                  src={wornUrls[selectedWornIndex]}
+                  alt={`${listing.neckline} ${listing.silhouette} gown worn`}
+                  className="h-full w-full object-cover"
+                />
+              ) : detailUrls.length > 0 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={detailUrls[0]}
                   alt={`${listing.neckline} ${listing.silhouette} gown`}
                   className="h-full w-full object-cover"
                 />
@@ -245,7 +260,86 @@ export default function ListingDetailPage() {
                 </div>
               )}
             </div>
+
+            {wornUrls.length === 0 && (
+              <div className="absolute left-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-xs text-white backdrop-blur-sm">
+                No worn photo yet
+              </div>
+            )}
+
+            {videoUrl && !videoOpen && (
+              <button
+                type="button"
+                onClick={() => setVideoOpen(true)}
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+              >
+                ▶ Watch video
+              </button>
+            )}
           </div>
+
+          {videoOpen && videoUrl && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setVideoOpen(false)}>
+              <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                <video src={videoUrl} controls autoPlay className="w-full rounded-xl" />
+                <button
+                  type="button"
+                  onClick={() => setVideoOpen(false)}
+                  className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm text-[var(--color-charcoal)] shadow"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
+          {wornUrls.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {wornUrls.map((url, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSelectedWornIndex(i)}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg transition-all ${
+                    i === selectedWornIndex
+                      ? 'ring-2 ring-[var(--color-rose)] ring-offset-1'
+                      : 'opacity-50 hover:opacity-100'
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Worn photo ${i + 1}`} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {detailUrls.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wider text-[var(--color-muted)]">The dress</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {detailUrls.map((url, i) => (
+                  <div key={i} className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-[var(--color-blush)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Dress detail ${i + 1}`} className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {conditionUrls.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wider text-[var(--color-muted)]">Condition photos</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {conditionUrls.map((url, i) => (
+                  <div key={i} className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--color-blush)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Condition photo ${i + 1}`} className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Details */}
