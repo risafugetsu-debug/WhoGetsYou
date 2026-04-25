@@ -58,6 +58,10 @@ export default function ListingDetailPage() {
   const [interestError, setInterestError] = useState<string | null>(null);
   const [selectedWornIndex, setSelectedWornIndex] = useState(0);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [rentalDays, setRentalDays] = useState<1 | 3 | 7>(1);
+  const [bookingPending, setBookingPending] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [isAccepted, setIsAccepted] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -125,7 +129,7 @@ export default function ListingDetailPage() {
         const [myMeasurementsRes, myPrefsRes, interestRes] = await Promise.all([
           supabase.from('measurements').select('*').eq('user_id', userId).single(),
           supabase.from('style_preferences').select('*').eq('user_id', userId).single(),
-          supabase.from('interests').select('id').eq('pre_bride_id', userId).eq('listing_id', id).maybeSingle(),
+          supabase.from('interests').select('id, accepted_at').eq('pre_bride_id', userId).eq('listing_id', id).maybeSingle(),
         ]);
 
         if (myMeasurementsRes.data && myPrefsRes.data && postBrideMeasurements) {
@@ -142,6 +146,7 @@ export default function ListingDetailPage() {
         }
 
         setIsInterested(!!interestRes.data);
+        setIsAccepted(!!interestRes.data?.accepted_at);
       }
 
       setData({
@@ -182,6 +187,29 @@ export default function ListingDetailPage() {
       setIsInterested(true);
     }
     setPending(false);
+  }
+
+  async function handleBooking() {
+    if (!data) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    setBookingPending(true);
+    setBookingError(null);
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ listingId: data.listing.id, rentalDays }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.url) {
+      setBookingError(json.error ?? 'Could not start checkout. Please try again.');
+      setBookingPending(false);
+      return;
+    }
+    window.location.href = json.url;
   }
 
   if (loading) {
@@ -453,23 +481,81 @@ export default function ListingDetailPage() {
           )}
 
           {viewerRole === 'pre-bride' && !isOwnListing && (
-            <button
-              type="button"
-              disabled={isInterested || pending}
-              onClick={expressInterest}
-              className={`w-full rounded-full py-3 text-sm font-medium transition-colors ${
-                isInterested
-                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
-                  : pending
-                  ? 'border border-[var(--color-border)] bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
-                  : 'border border-[var(--color-rose)] bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
-              }`}
-            >
-              {isInterested ? 'Interest sent ✓' : pending ? 'Sending…' : 'Express interest'}
-            </button>
-          )}
-          {interestError && (
-            <p className="text-xs text-red-500 text-center">{interestError}</p>
+            <div className="space-y-3">
+              {isAccepted ? (
+                <>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-xs font-medium text-emerald-700">Your interest was accepted ✓</p>
+                    <p className="mt-1 text-xs text-emerald-600">Select how many days and complete your booking below.</p>
+                  </div>
+
+                  {(listing.price_1day || listing.price_3day || listing.price_7day) && (
+                    <div className="flex gap-2">
+                      {([1, 3, 7] as const).filter((d) => {
+                        const p = d === 1 ? listing.price_1day : d === 3 ? listing.price_3day : listing.price_7day;
+                        return !!p;
+                      }).map((d) => {
+                        const price = d === 1 ? listing.price_1day : d === 3 ? listing.price_3day : listing.price_7day;
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setRentalDays(d)}
+                            className={`flex-1 rounded-xl border px-3 py-2.5 text-center transition-colors ${
+                              rentalDays === d
+                                ? 'border-[var(--color-rose)] bg-[var(--color-blush)] text-[var(--color-rose)]'
+                                : 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-rose)]'
+                            }`}
+                          >
+                            <p className="text-xs text-[var(--color-muted)]">{d} day{d > 1 ? 's' : ''}</p>
+                            <p className="text-sm font-medium">${price}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={bookingPending}
+                    onClick={handleBooking}
+                    className={`w-full rounded-full py-3 text-sm font-medium transition-colors ${
+                      bookingPending
+                        ? 'border border-[var(--color-border)] bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
+                        : 'bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
+                    }`}
+                  >
+                    {bookingPending ? 'Redirecting to payment…' : 'Complete booking →'}
+                  </button>
+                  {bookingError && (
+                    <p className="text-xs text-red-500 text-center">{bookingError}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={isInterested || pending}
+                    onClick={expressInterest}
+                    className={`w-full rounded-full py-3 text-sm font-medium transition-colors ${
+                      isInterested
+                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
+                        : pending
+                        ? 'border border-[var(--color-border)] bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
+                        : 'border border-[var(--color-rose)] bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
+                    }`}
+                  >
+                    {isInterested ? 'Interest sent ✓' : pending ? 'Sending…' : 'Express interest'}
+                  </button>
+                  {isInterested && (
+                    <p className="text-center text-xs text-[var(--color-muted)]">Waiting for the seller to accept.</p>
+                  )}
+                  {interestError && (
+                    <p className="text-xs text-red-500 text-center">{interestError}</p>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
