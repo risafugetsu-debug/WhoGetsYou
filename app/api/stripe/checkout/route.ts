@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
   if (existingBooking) {
     await admin.from('bookings').update({
       stripe_checkout_session_id: session.id,
+      status: 'pending_payment',
     }).eq('id', existingBooking.id);
   } else {
     await admin.from('bookings').insert({
