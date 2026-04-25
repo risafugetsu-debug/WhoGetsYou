@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [hasWornPhoto, setHasWornPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stripeStatus, setStripeStatus] = useState<'none' | 'pending' | 'connected'>('none');
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -69,6 +70,23 @@ export default function DashboardPage() {
     if (lightboxIndex !== null) window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxIndex, photoUrls.length]);
+
+  useEffect(() => {
+    const stripeReturn = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('stripe') : null;
+    if (stripeReturn !== 'connected') return;
+    async function recheckStripe() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase
+        .from('stripe_accounts')
+        .select('onboarding_complete')
+        .eq('user_id', session.user.id)
+        .single();
+      if (data?.onboarding_complete) setStripeStatus('connected');
+      else setStripeStatus('pending');
+    }
+    recheckStripe();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -101,6 +119,20 @@ export default function DashboardPage() {
           .eq('user_id', userId)
           .single();
         setListing(data as GownListing | null);
+
+        const { data: stripeData } = await supabase
+          .from('stripe_accounts')
+          .select('onboarding_complete')
+          .eq('user_id', userId)
+          .single();
+
+        if (!stripeData) {
+          setStripeStatus('none');
+        } else if (stripeData.onboarding_complete) {
+          setStripeStatus('connected');
+        } else {
+          setStripeStatus('pending');
+        }
 
         if (data?.id) {
           const { data: photosData } = await supabase
@@ -141,6 +173,18 @@ export default function DashboardPage() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push('/');
+  }
+
+  async function connectStripe() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch('/api/stripe/connect', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const { url, error } = await res.json();
+    if (error) { alert('Could not start Stripe setup. Please try again.'); return; }
+    window.location.href = url;
   }
 
   async function toggleAvailability() {
@@ -332,6 +376,33 @@ export default function DashboardPage() {
               )}
             </div>
           </Section>
+        )}
+
+        {profile.role === 'post-bride' && listing && stripeStatus !== 'connected' && (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4">
+            <p className="text-sm font-medium text-[var(--color-charcoal)]">
+              {stripeStatus === 'pending' ? 'Finish setting up payouts' : 'Set up payouts to receive rent'}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-muted)] leading-relaxed">
+              {stripeStatus === 'pending'
+                ? 'Your Stripe account setup is incomplete. Finish it so pre-brides can book your gown.'
+                : 'Connect a bank account so pre-brides can pay you directly through the platform.'}
+            </p>
+            <button
+              type="button"
+              onClick={connectStripe}
+              className="mt-3 inline-block rounded-full bg-[var(--color-rose)] px-4 py-1.5 text-xs text-white transition-colors hover:bg-[var(--color-rose-dark)]"
+            >
+              {stripeStatus === 'pending' ? 'Finish setup →' : 'Connect Stripe →'}
+            </button>
+          </div>
+        )}
+
+        {profile.role === 'post-bride' && listing && stripeStatus === 'connected' && (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <span className="text-xs font-medium text-emerald-700">Payouts connected ✓</span>
+            <span className="text-xs text-emerald-600">You&apos;ll receive 80% of each rental.</span>
+          </div>
         )}
 
         {profile.role === 'post-bride' && listing && !hasWornPhoto && (
