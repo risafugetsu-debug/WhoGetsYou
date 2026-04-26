@@ -20,6 +20,10 @@ interface InterestedPreBride {
   necklines: string[];
   silhouettes: string[];
   materials: string[];
+  bookingId: string | null;
+  bookingStatus: 'pending_payment' | 'booked' | 'completed' | 'refunded' | null;
+  bookingAmountCents: number | null;
+  bookingRentalDays: number | null;
 }
 
 export default function InterestsPage() {
@@ -28,6 +32,7 @@ export default function InterestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -72,6 +77,20 @@ export default function InterestsPage() {
         setLoading(false);
         return;
       }
+
+      const interestIds = interestsData.map((i: { id: string }) => i.id);
+
+      const { data: bookingsData } = await supabase
+        .from('bookings')
+        .select('id, interest_id, status, amount_cents, rental_days')
+        .in('interest_id', interestIds);
+
+      const bookingMap = new Map(
+        (bookingsData ?? []).map((b: {
+          interest_id: string; id: string; status: string;
+          amount_cents: number; rental_days: number;
+        }) => [b.interest_id, b])
+      );
 
       const preBrideIds = interestsData.map((i: { pre_bride_id: string }) => i.pre_bride_id);
 
@@ -118,6 +137,10 @@ export default function InterestsPage() {
           necklines: prefs.necklines,
           silhouettes: prefs.silhouettes,
           materials: prefs.materials,
+          bookingId: bookingMap.get(interest.id)?.id ?? null,
+          bookingStatus: (bookingMap.get(interest.id)?.status ?? null) as 'pending_payment' | 'booked' | 'completed' | 'refunded' | null,
+          bookingAmountCents: bookingMap.get(interest.id)?.amount_cents ?? null,
+          bookingRentalDays: bookingMap.get(interest.id)?.rental_days ?? null,
         });
       }
 
@@ -139,6 +162,26 @@ export default function InterestsPage() {
       prev.map((pb) => pb.interestId === interestId ? { ...pb, isAccepted: true } : pb)
     );
     setAcceptingId(null);
+  }
+
+  async function handleMarkComplete(bookingId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    setCompletingId(bookingId);
+    const res = await fetch('/api/stripe/payout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ bookingId }),
+    });
+    if (res.ok) {
+      setInterested((prev) =>
+        prev.map((pb) => pb.bookingId === bookingId ? { ...pb, bookingStatus: 'completed' } : pb)
+      );
+    }
+    setCompletingId(null);
   }
 
   if (loading) {
@@ -188,7 +231,9 @@ export default function InterestsPage() {
               key={pb.interestId}
               preBride={pb}
               isAccepting={acceptingId === pb.interestId}
+              isCompleting={completingId === pb.bookingId}
               onAccept={() => handleAccept(pb.interestId)}
+              onMarkComplete={() => { if (pb.bookingId) handleMarkComplete(pb.bookingId); }}
             />
           ))}
         </div>
@@ -200,11 +245,15 @@ export default function InterestsPage() {
 function InterestCard({
   preBride,
   isAccepting,
+  isCompleting,
   onAccept,
+  onMarkComplete,
 }: {
   preBride: InterestedPreBride;
   isAccepting: boolean;
+  isCompleting: boolean;
   onAccept: () => void;
+  onMarkComplete: () => void;
 }) {
   const { firstName, email, combinedScore, fitScore, styleScore, fitLabel, necklines, silhouettes, materials, createdAt, isAccepted } = preBride;
 
@@ -269,20 +318,49 @@ function InterestCard({
         )}
       </div>
 
-      {/* Accept / accepted state */}
-      <div className="mt-5">
-        {isAccepted ? (
+      <div className="mt-5 space-y-3">
+        {preBride.bookingStatus === 'completed' ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-xs font-medium text-emerald-700">Rental complete ✓</p>
+            <p className="mt-1 text-xs text-emerald-600">
+              ${((preBride.bookingAmountCents ?? 0) * 0.8 / 100).toFixed(0)} has been transferred to your account.
+            </p>
+          </div>
+        ) : preBride.bookingStatus === 'booked' ? (
+          <>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+              <p className="text-xs font-medium text-blue-700">Booking confirmed — payment received ✓</p>
+              <p className="mt-1 text-xs text-blue-600">
+                {preBride.bookingRentalDays} day{(preBride.bookingRentalDays ?? 1) > 1 ? 's' : ''} ·
+                ${((preBride.bookingAmountCents ?? 0) / 100).toFixed(0)} total ·
+                You receive ${((preBride.bookingAmountCents ?? 0) * 0.8 / 100).toFixed(0)}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isCompleting}
+              onClick={onMarkComplete}
+              className={`w-full rounded-full py-2.5 text-sm font-medium transition-colors ${
+                isCompleting
+                  ? 'border border-[var(--color-border)] bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
+                  : 'border border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer'
+              }`}
+            >
+              {isCompleting ? 'Processing…' : 'Mark rental complete'}
+            </button>
+          </>
+        ) : preBride.bookingStatus === 'pending_payment' ? (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-3">
+            <p className="text-xs font-medium text-[var(--color-charcoal)]">Waiting for payment</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">{firstName} has been notified and can complete the booking.</p>
+          </div>
+        ) : preBride.isAccepted ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <p className="text-xs font-medium text-emerald-700">You accepted her interest ✓</p>
             {email && (
               <p className="mt-1 text-sm text-emerald-800">
                 Reach out:{' '}
-                <a
-                  href={`mailto:${email}`}
-                  className="font-medium underline hover:no-underline"
-                >
-                  {email}
-                </a>
+                <a href={`mailto:${email}`} className="font-medium underline hover:no-underline">{email}</a>
               </p>
             )}
           </div>
