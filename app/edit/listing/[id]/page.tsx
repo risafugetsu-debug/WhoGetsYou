@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
@@ -27,8 +27,9 @@ interface FormState {
   retail_price: string;
 }
 
-export default function EditListingPage({ params }: { params: { id: string } }) {
+export default function EditListingPage() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
   const [form, setForm] = useState<FormState>({
     neckline: '',
     silhouette: '',
@@ -78,7 +79,7 @@ export default function EditListingPage({ params }: { params: { id: string } }) 
       const { data } = await supabase
         .from('gown_listings')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
       if (!data || data.user_id !== session.user.id) {
@@ -149,7 +150,7 @@ export default function EditListingPage({ params }: { params: { id: string } }) 
       setLoading(false);
     }
     load();
-  }, [router, params.id]);
+  }, [router, id]);
 
   function toggleMaterial(m: string) {
     setForm((f) => ({
@@ -200,7 +201,7 @@ export default function EditListingPage({ params }: { params: { id: string } }) 
       price_3day: form.price_3day ? parseFloat(form.price_3day) : null,
       price_7day: form.price_7day ? parseFloat(form.price_7day) : null,
       retail_price: form.retail_price ? parseFloat(form.retail_price) : null,
-    }).eq('id', params.id);
+    }).eq('id', id);
 
     async function uploadPhotos(files: File[], category: 'worn' | 'detail' | 'condition') {
       for (const file of files) {
