@@ -27,7 +27,7 @@ interface FormState {
   retail_price: string;
 }
 
-export default function EditListingPage() {
+export default function EditListingPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
     neckline: '',
@@ -78,8 +78,13 @@ export default function EditListingPage() {
       const { data } = await supabase
         .from('gown_listings')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('id', params.id)
         .single();
+
+      if (!data || data.user_id !== session.user.id) {
+        router.replace('/dashboard');
+        return;
+      }
 
       if (data) {
         setListingId(data.id);
@@ -144,7 +149,7 @@ export default function EditListingPage() {
       setLoading(false);
     }
     load();
-  }, [router]);
+  }, [router, params.id]);
 
   function toggleMaterial(m: string) {
     setForm((f) => ({
@@ -195,7 +200,7 @@ export default function EditListingPage() {
       price_3day: form.price_3day ? parseFloat(form.price_3day) : null,
       price_7day: form.price_7day ? parseFloat(form.price_7day) : null,
       retail_price: form.retail_price ? parseFloat(form.retail_price) : null,
-    }).eq('user_id', session.user.id);
+    }).eq('id', params.id);
 
     async function uploadPhotos(files: File[], category: 'worn' | 'detail' | 'condition') {
       for (const file of files) {
