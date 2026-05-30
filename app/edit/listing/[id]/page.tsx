@@ -500,7 +500,8 @@ export default function EditListingPage() {
 
           <p className="mt-4 text-xs text-[var(--color-muted)] leading-relaxed">
             WhoGetsYou takes a small service fee from each completed rental to keep the platform running.
-            The prices you set above are what renters pay — your earnings will reflect the fee deduction.
+            The prices you set above are what renters pay — your earnings will reflect the fee deduction.{' '}
+            <a href="/faq#payments" className="text-[var(--color-rose)] hover:underline">Learn more</a>
           </p>
         </div>
 
