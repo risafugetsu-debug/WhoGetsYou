@@ -49,6 +49,16 @@ interface StylePreferences {
   date_undecided: boolean;
 }
 
+interface BookingRow {
+  id: string;
+  listing_id: string;
+  rental_days: number;
+  amount_cents: number;
+  platform_fee_cents: number;
+  status: 'pending_payment' | 'booked' | 'completed';
+  gown_listings: { neckline: string; silhouette: string } | { neckline: string; silhouette: string }[] | null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -58,6 +68,9 @@ export default function DashboardPage() {
   const [preferences, setPreferences] = useState<StylePreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [stripeStatus, setStripeStatus] = useState<'none' | 'pending' | 'connected'>('none');
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [payoutPending, setPayoutPending] = useState<string | null>(null);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
 
   useEffect(() => {
     const stripeReturn = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('stripe') : null;
@@ -147,26 +160,43 @@ export default function DashboardPage() {
           }
         }
 
-        const { data: stripeData } = await supabase
-          .from('stripe_accounts')
-          .select('onboarding_complete')
-          .eq('user_id', userId)
-          .single();
+        const [stripeData, postBookingsData] = await Promise.all([
+          supabase
+            .from('stripe_accounts')
+            .select('onboarding_complete')
+            .eq('user_id', userId)
+            .single(),
+          supabase
+            .from('bookings')
+            .select('id, listing_id, rental_days, amount_cents, platform_fee_cents, status, gown_listings(neckline, silhouette)')
+            .eq('post_bride_id', userId)
+            .order('created_at', { ascending: false }),
+        ]);
 
-        if (!stripeData) {
+        if (!stripeData.data) {
           setStripeStatus('none');
-        } else if (stripeData.onboarding_complete) {
+        } else if (stripeData.data.onboarding_complete) {
           setStripeStatus('connected');
         } else {
           setStripeStatus('pending');
         }
+
+        setBookings((postBookingsData.data ?? []) as BookingRow[]);
       } else {
-        const { data } = await supabase
-          .from('style_preferences')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-        setPreferences(data as StylePreferences | null);
+        const [prefsData, preBookingsData] = await Promise.all([
+          supabase
+            .from('style_preferences')
+            .select('*')
+            .eq('user_id', userId)
+            .single(),
+          supabase
+            .from('bookings')
+            .select('id, listing_id, rental_days, amount_cents, platform_fee_cents, status, gown_listings(neckline, silhouette)')
+            .eq('pre_bride_id', userId)
+            .order('created_at', { ascending: false }),
+        ]);
+        setPreferences(prefsData.data as StylePreferences | null);
+        setBookings((preBookingsData.data ?? []) as BookingRow[]);
       }
 
       setLoading(false);
@@ -212,6 +242,28 @@ export default function DashboardPage() {
       );
       alert('Failed to update availability. Please try again.');
     }
+  }
+
+  async function releasePayment(bookingId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    setPayoutPending(bookingId);
+    setPayoutError(null);
+    const res = await fetch('/api/stripe/payout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ bookingId }),
+    });
+    if (res.ok) {
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'completed' } : b));
+    } else {
+      const json = await res.json();
+      setPayoutError(json.error ?? 'Could not release payment — please try again.');
+    }
+    setPayoutPending(null);
   }
 
   if (loading) {
@@ -388,6 +440,80 @@ export default function DashboardPage() {
             <span className="text-xs font-medium text-emerald-700">Payouts connected ✓</span>
             <span className="text-xs text-emerald-600">You&apos;ll receive 80% of each rental.</span>
           </div>
+        )}
+
+        {bookings.length > 0 && (
+          <Section title="Your bookings">
+            <div className="divide-y divide-[var(--color-border)]">
+              {bookings.map((booking) => {
+                const gown = Array.isArray(booking.gown_listings)
+                  ? booking.gown_listings[0] ?? null
+                  : booking.gown_listings;
+                const label = gown ? `${gown.silhouette} · ${gown.neckline}` : 'Gown';
+                const days = booking.rental_days;
+                const amount = profile.role === 'pre-bride'
+                  ? booking.amount_cents / 100
+                  : (booking.amount_cents - booking.platform_fee_cents) / 100;
+                const isReleasing = payoutPending === booking.id;
+
+                const badgeClass =
+                  booking.status === 'booked'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : booking.status === 'pending_payment'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-stone-200 bg-stone-50 text-stone-500';
+                const badgeLabel =
+                  booking.status === 'booked' ? 'Confirmed'
+                  : booking.status === 'pending_payment' ? 'Awaiting payment'
+                  : 'Completed';
+
+                return (
+                  <div key={booking.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Link
+                        href={`/listings/${booking.listing_id}`}
+                        className="flex-1 min-w-0 text-sm text-[var(--color-charcoal)] hover:text-[var(--color-rose)] transition-colors truncate"
+                      >
+                        {label}
+                      </Link>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}>
+                        {badgeLabel}
+                      </span>
+                      <span className="shrink-0 text-xs text-[var(--color-muted)]">
+                        {days} day{days > 1 ? 's' : ''}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-[var(--color-charcoal)]">
+                        ${amount.toFixed(0)}
+                      </span>
+                      {profile.role === 'post-bride' && booking.status === 'booked' && (
+                        <button
+                          type="button"
+                          disabled={isReleasing}
+                          onClick={() => releasePayment(booking.id)}
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                            isReleasing
+                              ? 'bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
+                              : 'bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
+                          }`}
+                        >
+                          {isReleasing ? 'Releasing…' : 'Release payment →'}
+                        </button>
+                      )}
+                    </div>
+                    {payoutError && payoutPending === null && booking.status === 'booked' && profile.role === 'post-bride' && (
+                      <p className="mt-1 text-xs text-red-500">{payoutError}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {bookings.length === 0 && (
+          <Section title="Your bookings">
+            <p className="text-sm text-[var(--color-muted)]">No bookings yet.</p>
+          </Section>
         )}
 
         {profile.role === 'pre-bride' ? (
