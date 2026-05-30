@@ -61,13 +61,13 @@ export default function HeaderNav() {
         </Link>
         <Link
           href="/dashboard"
-          className="text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
+          className="hidden sm:inline text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
         >
           Hi, {firstName}
         </Link>
         <button
           onClick={handleSignOut}
-          className="rounded-full border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-charcoal)] hover:border-[var(--color-rose)] hover:text-[var(--color-rose)] transition-colors"
+          className="rounded-full border border-[var(--color-border)] px-4 py-1.5 text-sm text-[var(--color-charcoal)] hover:border-[var(--color-rose)] hover:text-[var(--color-rose)] transition-colors"
         >
           Sign out
         </button>
