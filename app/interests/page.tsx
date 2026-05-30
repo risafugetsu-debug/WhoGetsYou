@@ -215,7 +215,7 @@ export default function InterestsPage() {
         Interested pre-brides
       </h1>
       <p className="mt-2 text-sm text-[var(--color-muted)]">
-        Pre-brides who expressed interest in your gown, ranked by compatibility. Accept to share contact details.
+        Pre-brides who expressed interest in your gown, ranked by compatibility. Accept to start messaging.
       </p>
 
       {interested.length === 0 ? (

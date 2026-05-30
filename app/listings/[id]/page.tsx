@@ -501,87 +501,28 @@ export default function ListingDetailPage() {
             <div className="space-y-3">
               {isAccepted ? (
                 <>
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <p className="text-xs font-medium text-emerald-700">Your interest was accepted ✓</p>
-                    <p className="mt-1 text-xs text-emerald-600">Select your dates and complete your booking below.</p>
+                  {/* Coming soon — shown first, impossible to miss */}
+                  <div className="rounded-2xl bg-[var(--color-charcoal)] px-5 py-5 text-center space-y-2">
+                    <p className="text-base font-medium text-white">Online booking coming soon</p>
+                    <p className="text-sm text-white/70 leading-relaxed">
+                      Payments are launching shortly. In the meantime, message {data.postBrideFirstName} directly to arrange your rental.
+                    </p>
                   </div>
 
+                  {/* Accepted notice */}
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-xs font-medium text-emerald-700">Your interest was accepted ✓</p>
+                  </div>
+
+                  {/* Message button — primary CTA */}
                   {interestId && (
                     <a
                       href={`/messages/${interestId}`}
-                      className="flex items-center justify-center gap-2 w-full rounded-full border border-[var(--color-border)] py-2.5 text-sm text-[var(--color-muted)] hover:border-[var(--color-rose)] hover:text-[var(--color-rose)] transition-colors"
+                      className="flex items-center justify-center w-full rounded-full bg-[var(--color-rose)] py-3 text-sm font-medium text-white hover:bg-[var(--color-rose-dark)] transition-colors"
                     >
                       Message {data.postBrideFirstName} →
                     </a>
                   )}
-
-                  {(listing.price_3day || listing.price_7day || (listing as RawListing & { price_14day?: number | null }).price_14day) && (() => {
-                    const l14 = listing as RawListing & { price_14day?: number | null };
-                    const tiers: { d: 3 | 7 | 14; price: number }[] = [
-                      listing.price_3day ? { d: 3, price: listing.price_3day } : null,
-                      listing.price_7day ? { d: 7, price: listing.price_7day } : null,
-                      l14.price_14day ? { d: 14, price: l14.price_14day } : null,
-                    ].filter(Boolean) as { d: 3 | 7 | 14; price: number }[];
-                    return (
-                      <div className="flex gap-2">
-                        {tiers.map(({ d, price }) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setRentalDays(d)}
-                            className={`flex-1 rounded-xl border px-3 py-2.5 text-center transition-colors ${
-                              rentalDays === d
-                                ? 'border-[var(--color-rose)] bg-[var(--color-blush)] text-[var(--color-rose)]'
-                                : 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-rose)]'
-                            }`}
-                          >
-                            <p className="text-xs text-[var(--color-muted)]">{d} days</p>
-                            <p className="text-sm font-medium">${price}</p>
-                            <p className="text-xs text-[var(--color-muted)]">${Math.round(price / d)}/day</p>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Date picker */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-charcoal)]">
-                      When do you need the dress?
-                    </label>
-                    <input
-                      type="date"
-                      value={rentalStartDate}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setRentalStartDate(e.target.value)}
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors"
-                    />
-                    {rentalStartDate && (
-                      <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                        Return by{' '}
-                        <span className="font-medium text-[var(--color-charcoal)]">
-                          {new Date(
-                            new Date(rentalStartDate + 'T12:00:00').setDate(
-                              new Date(rentalStartDate + 'T12:00:00').getDate() + rentalDays - 1
-                            )
-                          ).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* No-alteration notice */}
-                  <p className="text-xs text-[var(--color-muted)] leading-relaxed border border-[var(--color-border)] rounded-xl px-3 py-2.5">
-                    The gown may not be altered, pinned, cut, or modified in any way.{' '}
-                    <a href="/faq" className="text-[var(--color-rose)] hover:underline">Rental policies →</a>
-                  </p>
-
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4 text-center space-y-1">
-                    <p className="text-sm font-medium text-[var(--color-charcoal)]">Booking coming soon</p>
-                    <p className="text-xs text-[var(--color-muted)] leading-relaxed">
-                      Online payments are launching shortly. Message {data.postBrideFirstName} to arrange your rental in the meantime.
-                    </p>
-                  </div>
                 </>
               ) : (
                 <>
@@ -602,6 +543,9 @@ export default function ListingDetailPage() {
                   {isInterested && (
                     <p className="text-center text-xs text-[var(--color-muted)]">Waiting for the seller to accept.</p>
                   )}
+                  <p className="text-center text-xs text-[var(--color-muted)]">
+                    Online booking coming soon — payments are launching shortly.
+                  </p>
                   {interestError && (
                     <p className="text-xs text-red-500 text-center">{interestError}</p>
                   )}
