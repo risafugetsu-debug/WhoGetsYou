@@ -355,14 +355,17 @@ function InterestCard({
             <p className="mt-1 text-xs text-[var(--color-muted)]">{firstName} has been notified and can complete the booking.</p>
           </div>
         ) : preBride.isAccepted ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <p className="text-xs font-medium text-emerald-700">You accepted her interest ✓</p>
-            {email && (
-              <p className="mt-1 text-sm text-emerald-800">
-                Reach out:{' '}
-                <a href={`mailto:${email}`} className="font-medium underline hover:no-underline">{email}</a>
-              </p>
-            )}
+          <div className="space-y-2">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs font-medium text-emerald-700">You accepted her interest ✓</p>
+              <p className="mt-0.5 text-xs text-emerald-600">Coordinate pickup and return details below.</p>
+            </div>
+            <a
+              href={`/messages/${preBride.interestId}`}
+              className="flex items-center justify-center gap-2 w-full rounded-full border border-[var(--color-rose)] py-2.5 text-sm font-medium text-[var(--color-rose)] hover:bg-[var(--color-blush)] transition-colors"
+            >
+              Message {firstName} →
+            </a>
           </div>
         ) : (
           <button

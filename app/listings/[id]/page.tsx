@@ -60,6 +60,7 @@ export default function ListingDetailPage() {
   const [videoOpen, setVideoOpen] = useState(false);
   const [rentalDays, setRentalDays] = useState<3 | 7 | 14>(3);
   const [rentalStartDate, setRentalStartDate] = useState('');
+  const [interestId, setInterestId] = useState<string | null>(null);
   const [bookingPending, setBookingPending] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
@@ -148,6 +149,7 @@ export default function ListingDetailPage() {
 
         setIsInterested(!!interestRes.data);
         setIsAccepted(!!interestRes.data?.accepted_at);
+        if (interestRes.data?.id) setInterestId(interestRes.data.id);
       }
 
       setData({
@@ -501,8 +503,17 @@ export default function ListingDetailPage() {
                 <>
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <p className="text-xs font-medium text-emerald-700">Your interest was accepted ✓</p>
-                    <p className="mt-1 text-xs text-emerald-600">Select how many days and complete your booking below.</p>
+                    <p className="mt-1 text-xs text-emerald-600">Select your dates and complete your booking below.</p>
                   </div>
+
+                  {interestId && (
+                    <a
+                      href={`/messages/${interestId}`}
+                      className="flex items-center justify-center gap-2 w-full rounded-full border border-[var(--color-border)] py-2.5 text-sm text-[var(--color-muted)] hover:border-[var(--color-rose)] hover:text-[var(--color-rose)] transition-colors"
+                    >
+                      Message {data.postBrideFirstName} →
+                    </a>
+                  )}
 
                   {(listing.price_3day || listing.price_7day || (listing as RawListing & { price_14day?: number | null }).price_14day) && (() => {
                     const l14 = listing as RawListing & { price_14day?: number | null };
