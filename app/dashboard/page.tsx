@@ -328,6 +328,10 @@ export default function DashboardPage() {
         {profile.role === 'post-bride' && (
           <div>
             <p className="mb-4 text-xs uppercase tracking-widest text-[var(--color-muted)]">Your gowns</p>
+            <p className="mb-4 text-xs text-[var(--color-muted)] leading-relaxed">
+              Remember to factor in dry cleaning costs when setting your rental price — bridal gown specialist cleaning typically runs $150–$400.{' '}
+              <a href="/faq#cleaning" className="text-[var(--color-rose)] hover:underline">Learn more</a>
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {listings.map((l) => (
                 <div key={l.id} className="rounded-xl border border-[var(--color-border)] overflow-hidden bg-white">
