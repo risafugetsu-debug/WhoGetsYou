@@ -438,7 +438,6 @@ export default function DashboardPage() {
         {profile.role === 'post-bride' && listings.length > 0 && stripeStatus === 'connected' && (
           <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <span className="text-xs font-medium text-emerald-700">Payouts connected ✓</span>
-            <span className="text-xs text-emerald-600">You&apos;ll receive 80% of each rental.</span>
           </div>
         )}
 
