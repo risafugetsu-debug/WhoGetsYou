@@ -58,7 +58,8 @@ export default function ListingDetailPage() {
   const [interestError, setInterestError] = useState<string | null>(null);
   const [selectedWornIndex, setSelectedWornIndex] = useState(0);
   const [videoOpen, setVideoOpen] = useState(false);
-  const [rentalDays, setRentalDays] = useState<1 | 3 | 7>(1);
+  const [rentalDays, setRentalDays] = useState<3 | 7 | 14>(3);
+  const [rentalStartDate, setRentalStartDate] = useState('');
   const [bookingPending, setBookingPending] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
@@ -195,13 +196,18 @@ export default function ListingDetailPage() {
     if (!session) return;
     setBookingPending(true);
     setBookingError(null);
+    if (!rentalStartDate) {
+      setBookingError('Please select your rental start date.');
+      setBookingPending(false);
+      return;
+    }
     const res = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ listingId: data.listing.id, rentalDays }),
+      body: JSON.stringify({ listingId: data.listing.id, rentalDays, rentalStartDate }),
     });
     const json = await res.json();
     if (!res.ok || !json.url) {
@@ -417,7 +423,7 @@ export default function ListingDetailPage() {
             )}
           </div>
 
-          {(listing.price_1day || listing.price_3day || listing.price_7day) && (
+          {(listing.price_3day || listing.price_7day || (listing as RawListing & { price_14day?: number | null }).price_14day) && (
             <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
               <div className="flex items-center justify-between bg-[var(--color-blush)] px-4 py-2.5">
                 <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-charcoal)]">Rental pricing</p>
@@ -426,29 +432,38 @@ export default function ListingDetailPage() {
                 )}
               </div>
               <div className="divide-y divide-[var(--color-border)]">
-                {listing.price_1day && (
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <p className="text-sm text-[var(--color-charcoal)]">1 day</p>
-                    <p className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_1day}</p>
-                  </div>
-                )}
                 {listing.price_3day && (
                   <div className="flex items-center justify-between px-4 py-3">
                     <p className="text-sm text-[var(--color-charcoal)]">3 days</p>
-                    <p className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_3day}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_3day}</p>
+                      <p className="text-xs text-[var(--color-muted)]">${Math.round(listing.price_3day / 3)}/day</p>
+                    </div>
                   </div>
                 )}
                 {listing.price_7day && (
                   <div className="flex items-center justify-between px-4 py-3">
-                    <p className="text-sm text-[var(--color-charcoal)]">7+ days</p>
-                    <p className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_7day}</p>
+                    <p className="text-sm text-[var(--color-charcoal)]">7 days</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_7day}</p>
+                      <p className="text-xs text-[var(--color-muted)]">${Math.round(listing.price_7day / 7)}/day</p>
+                    </div>
+                  </div>
+                )}
+                {(listing as RawListing & { price_14day?: number | null }).price_14day && (
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <p className="text-sm text-[var(--color-charcoal)]">14 days</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-[var(--color-charcoal)]">${(listing as RawListing & { price_14day?: number | null }).price_14day}</p>
+                      <p className="text-xs text-[var(--color-muted)]">${Math.round((listing as RawListing & { price_14day?: number | null }).price_14day! / 14)}/day</p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {listing.retail_price && !(listing.price_1day || listing.price_3day || listing.price_7day) && (
+          {listing.retail_price && !(listing.price_3day || listing.price_7day) && (
             <div>
               <p className="text-xs text-[var(--color-muted)]">Retail value</p>
               <p className="mt-0.5 text-sm text-stone-400 line-through">${listing.retail_price.toLocaleString()}</p>
@@ -489,14 +504,16 @@ export default function ListingDetailPage() {
                     <p className="mt-1 text-xs text-emerald-600">Select how many days and complete your booking below.</p>
                   </div>
 
-                  {(listing.price_1day || listing.price_3day || listing.price_7day) && (
-                    <div className="flex gap-2">
-                      {([1, 3, 7] as const).filter((d) => {
-                        const p = d === 1 ? listing.price_1day : d === 3 ? listing.price_3day : listing.price_7day;
-                        return !!p;
-                      }).map((d) => {
-                        const price = d === 1 ? listing.price_1day : d === 3 ? listing.price_3day : listing.price_7day;
-                        return (
+                  {(listing.price_3day || listing.price_7day || (listing as RawListing & { price_14day?: number | null }).price_14day) && (() => {
+                    const l14 = listing as RawListing & { price_14day?: number | null };
+                    const tiers: { d: 3 | 7 | 14; price: number }[] = [
+                      listing.price_3day ? { d: 3, price: listing.price_3day } : null,
+                      listing.price_7day ? { d: 7, price: listing.price_7day } : null,
+                      l14.price_14day ? { d: 14, price: l14.price_14day } : null,
+                    ].filter(Boolean) as { d: 3 | 7 | 14; price: number }[];
+                    return (
+                      <div className="flex gap-2">
+                        {tiers.map(({ d, price }) => (
                           <button
                             key={d}
                             type="button"
@@ -507,17 +524,51 @@ export default function ListingDetailPage() {
                                 : 'border-[var(--color-border)] text-[var(--color-charcoal)] hover:border-[var(--color-rose)]'
                             }`}
                           >
-                            <p className="text-xs text-[var(--color-muted)]">{d} day{d > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-[var(--color-muted)]">{d} days</p>
                             <p className="text-sm font-medium">${price}</p>
+                            <p className="text-xs text-[var(--color-muted)]">${Math.round(price / d)}/day</p>
                           </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
 
+                  {/* Date picker */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-charcoal)]">
+                      When do you need the dress?
+                    </label>
+                    <input
+                      type="date"
+                      value={rentalStartDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setRentalStartDate(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors"
+                    />
+                    {rentalStartDate && (
+                      <p className="mt-1.5 text-xs text-[var(--color-muted)]">
+                        Return by{' '}
+                        <span className="font-medium text-[var(--color-charcoal)]">
+                          {new Date(
+                            new Date(rentalStartDate + 'T12:00:00').setDate(
+                              new Date(rentalStartDate + 'T12:00:00').getDate() + rentalDays - 1
+                            )
+                          ).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* No-alteration notice */}
+                  <p className="text-xs text-[var(--color-muted)] leading-relaxed border border-[var(--color-border)] rounded-xl px-3 py-2.5">
+                    The gown may not be altered, pinned, cut, or modified in any way.{' '}
+                    <a href="/faq" className="text-[var(--color-rose)] hover:underline">Rental policies →</a>
+                  </p>
+
+                  {/* Security deposit notice */}
                   <p className="text-xs text-[var(--color-muted)] leading-relaxed text-center">
-                    A temporary security hold equal to the gown&apos;s declared retail value (capped at $3,000) will be placed on your card at checkout. It is released automatically when the gown is returned.{' '}
-                    <a href="/faq#security-deposit" className="text-[var(--color-rose)] hover:underline">Learn more</a>
+                    A temporary security hold (up to $3,000) will be placed on your card at checkout — released automatically on safe return.{' '}
+                    <a href="/faq" className="text-[var(--color-rose)] hover:underline">Learn more</a>
                   </p>
 
                   <button

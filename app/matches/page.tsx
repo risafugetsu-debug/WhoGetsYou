@@ -463,10 +463,10 @@ function MatchCard({
         <div className="mt-3 space-y-1 text-xs text-[var(--color-muted)]">
           <p>Condition: <span className="text-[var(--color-charcoal)]">{listing.condition}</span></p>
           <p>Location: <span className="text-[var(--color-charcoal)]">{listing.borough}, NYC</span></p>
-          {(listing.price_1day || listing.retail_price) && (
+          {(listing.price_3day || listing.retail_price) && (
             <p className="flex items-baseline gap-2">
-              {listing.price_1day && (
-                <span>From: <span className="font-medium text-[var(--color-charcoal)]">${listing.price_1day} / day</span></span>
+              {listing.price_3day && (
+                <span>From: <span className="font-medium text-[var(--color-charcoal)]">${Math.round(listing.price_3day / 3)}/day</span></span>
               )}
               {listing.retail_price && (
                 <span className="text-stone-400 line-through">${listing.retail_price.toLocaleString()}</span>

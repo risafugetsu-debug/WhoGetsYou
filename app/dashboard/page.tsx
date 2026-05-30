@@ -33,9 +33,9 @@ interface GownListing {
   condition_notes: string;
   borough: string;
   wedding_date: string;
-  price_1day: number | null;
   price_3day: number | null;
   price_7day: number | null;
+  price_14day: number | null;
   retail_price: number | null;
   is_available: boolean;
 }
@@ -354,8 +354,8 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium text-[var(--color-charcoal)] truncate">
                         {l.silhouette} · {l.neckline}
                       </p>
-                      {l.price_1day != null && (
-                        <p className="text-xs text-[var(--color-muted)] mt-0.5">${l.price_1day}/day</p>
+                      {l.price_3day != null && (
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">from ${Math.round(l.price_3day / 3)}/day</p>
                       )}
                     </div>
                   </Link>

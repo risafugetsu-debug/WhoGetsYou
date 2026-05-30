@@ -77,9 +77,9 @@ export interface GownListing {
   condition_notes: string;
   borough: string;
   wedding_date: string;
-  price_1day: number | null;
   price_3day: number | null;
   price_7day: number | null;
+  price_14day: number | null;
   retail_price: number | null;
   is_available: boolean;
 }
