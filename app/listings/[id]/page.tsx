@@ -576,27 +576,12 @@ export default function ListingDetailPage() {
                     <a href="/faq" className="text-[var(--color-rose)] hover:underline">Rental policies →</a>
                   </p>
 
-                  {/* Security deposit notice */}
-                  <p className="text-xs text-[var(--color-muted)] leading-relaxed text-center">
-                    A temporary security hold (up to $3,000) will be placed on your card at checkout — released automatically on safe return.{' '}
-                    <a href="/faq" className="text-[var(--color-rose)] hover:underline">Learn more</a>
-                  </p>
-
-                  <button
-                    type="button"
-                    disabled={bookingPending}
-                    onClick={handleBooking}
-                    className={`w-full rounded-full py-3 text-sm font-medium transition-colors ${
-                      bookingPending
-                        ? 'border border-[var(--color-border)] bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
-                        : 'bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
-                    }`}
-                  >
-                    {bookingPending ? 'Redirecting to payment…' : 'Complete booking →'}
-                  </button>
-                  {bookingError && (
-                    <p className="text-xs text-red-500 text-center">{bookingError}</p>
-                  )}
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4 text-center space-y-1">
+                    <p className="text-sm font-medium text-[var(--color-charcoal)]">Booking coming soon</p>
+                    <p className="text-xs text-[var(--color-muted)] leading-relaxed">
+                      Online payments are launching shortly. Message {data.postBrideFirstName} to arrange your rental in the meantime.
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
