@@ -353,6 +353,11 @@ export default function NewListingPage() {
               </div>
             </div>
           )}
+
+          <p className="mt-4 text-xs text-[var(--color-muted)] leading-relaxed">
+            WhoGetsYou takes a small service fee from each completed rental to keep the platform running.
+            The prices you set above are what renters pay — your earnings will reflect the fee deduction.
+          </p>
         </div>
 
         {/* Borough */}
