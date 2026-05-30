@@ -519,7 +519,7 @@ function MatchCard({
             {interestId && (
               <a
                 href={`/messages/${interestId}`}
-                className="flex items-center justify-center w-full rounded-full border border-[var(--color-rose)] py-2.5 text-sm font-medium text-[var(--color-rose)] hover:bg-[var(--color-blush)] transition-colors"
+                className="flex items-center justify-center w-full rounded-full bg-[var(--color-rose)] py-2.5 text-sm font-medium text-white hover:bg-[var(--color-rose-dark)] transition-colors"
               >
                 Message {postBrideFirstName} →
               </a>

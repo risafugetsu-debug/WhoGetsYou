@@ -51,13 +51,19 @@ export default function HeaderNav() {
     return (
       <div className="flex items-center gap-4">
         <Link
-          href="/dashboard"
+          href="/messages"
           className="relative text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
         >
-          Hi, {firstName}
+          Messages
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-2.5 flex h-2 w-2 rounded-full bg-[var(--color-rose)]" />
           )}
+        </Link>
+        <Link
+          href="/dashboard"
+          className="text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
+        >
+          Hi, {firstName}
         </Link>
         <button
           onClick={handleSignOut}
