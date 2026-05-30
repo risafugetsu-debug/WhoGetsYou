@@ -515,6 +515,11 @@ export default function ListingDetailPage() {
                     </div>
                   )}
 
+                  <p className="text-xs text-[var(--color-muted)] leading-relaxed text-center">
+                    A temporary security hold equal to the gown&apos;s declared retail value (capped at $3,000) will be placed on your card at checkout. It is released automatically when the gown is returned.{' '}
+                    <a href="/faq#security-deposit" className="text-[var(--color-rose)] hover:underline">Learn more</a>
+                  </p>
+
                   <button
                     type="button"
                     disabled={bookingPending}
