@@ -33,9 +33,9 @@ interface GownListing {
   condition_notes: string;
   borough: string;
   wedding_date: string;
-  price_1day: number | null;
   price_3day: number | null;
   price_7day: number | null;
+  price_14day: number | null;
   retail_price: number | null;
   is_available: boolean;
 }
@@ -49,27 +49,28 @@ interface StylePreferences {
   date_undecided: boolean;
 }
 
+interface BookingRow {
+  id: string;
+  listing_id: string;
+  rental_days: number;
+  amount_cents: number;
+  platform_fee_cents: number;
+  status: 'pending_payment' | 'booked' | 'completed';
+  gown_listings: { neckline: string; silhouette: string } | { neckline: string; silhouette: string }[] | null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [measurements, setMeasurements] = useState<MeasurementRow | null>(null);
-  const [listing, setListing] = useState<GownListing | null>(null);
+  const [listings, setListings] = useState<GownListing[]>([]);
+  const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map());
   const [preferences, setPreferences] = useState<StylePreferences | null>(null);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [hasWornPhoto, setHasWornPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stripeStatus, setStripeStatus] = useState<'none' | 'pending' | 'connected'>('none');
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setLightboxIndex(null);
-      if (e.key === 'ArrowRight') setLightboxIndex((i) => i !== null ? (i + 1) % photoUrls.length : null);
-      if (e.key === 'ArrowLeft') setLightboxIndex((i) => i !== null ? (i - 1 + photoUrls.length) % photoUrls.length : null);
-    }
-    if (lightboxIndex !== null) window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxIndex, photoUrls.length]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [payoutPending, setPayoutPending] = useState<string | null>(null);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
 
   useEffect(() => {
     const stripeReturn = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('stripe') : null;
@@ -113,55 +114,89 @@ export default function DashboardPage() {
       setMeasurements(measurementsRes.data as MeasurementRow | null);
 
       if (profileRes.data.role === 'post-bride') {
-        const { data } = await supabase
+        const { data: listingsData } = await supabase
           .from('gown_listings')
           .select('*')
           .eq('user_id', userId)
-          .single();
-        setListing(data as GownListing | null);
+          .order('created_at');
 
-        const { data: stripeData } = await supabase
-          .from('stripe_accounts')
-          .select('onboarding_complete')
-          .eq('user_id', userId)
-          .single();
+        const allListings = (listingsData ?? []) as GownListing[];
+        setListings(allListings);
 
-        if (!stripeData) {
+        // Fetch one thumbnail (first worn photo) per listing
+        const ids = allListings.map((l) => l.id);
+        if (ids.length > 0) {
+          const { data: photosData } = await supabase
+            .from('gown_photos')
+            .select('listing_id, storage_path')
+            .in('listing_id', ids)
+            .eq('category', 'worn')
+            .order('created_at');
+
+          const firstPhotos = new Map<string, string>();
+          for (const photo of (photosData ?? []) as { listing_id: string; storage_path: string }[]) {
+            if (!firstPhotos.has(photo.listing_id)) {
+              firstPhotos.set(photo.listing_id, photo.storage_path);
+            }
+          }
+
+          if (firstPhotos.size > 0) {
+            const { data: signedData } = await supabase.storage
+              .from('gown-photos')
+              .createSignedUrls([...firstPhotos.values()], 3600);
+
+            const urlMap = new Map(
+              (signedData ?? [])
+                .filter((e) => e.signedUrl && e.path)
+                .map((e) => [e.path!, e.signedUrl!])
+            );
+
+            const thumbMap = new Map<string, string>();
+            for (const [listingId, path] of firstPhotos) {
+              const url = urlMap.get(path);
+              if (url) thumbMap.set(listingId, url);
+            }
+            setThumbnails(thumbMap);
+          }
+        }
+
+        const [stripeData, postBookingsData] = await Promise.all([
+          supabase
+            .from('stripe_accounts')
+            .select('onboarding_complete')
+            .eq('user_id', userId)
+            .single(),
+          supabase
+            .from('bookings')
+            .select('id, listing_id, rental_days, amount_cents, platform_fee_cents, status, gown_listings(neckline, silhouette)')
+            .eq('post_bride_id', userId)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        if (!stripeData.data) {
           setStripeStatus('none');
-        } else if (stripeData.onboarding_complete) {
+        } else if (stripeData.data.onboarding_complete) {
           setStripeStatus('connected');
         } else {
           setStripeStatus('pending');
         }
 
-        if (data?.id) {
-          const { data: photosData } = await supabase
-            .from('gown_photos')
-            .select('storage_path, category')
-            .eq('listing_id', data.id)
-            .order('created_at');
-
-          setHasWornPhoto(
-            (photosData ?? []).some((p: { storage_path: string; category: string }) => p.category === 'worn')
-          );
-
-          const paths = (photosData ?? []).map((p: { storage_path: string; category: string }) => p.storage_path);
-          if (paths.length > 0) {
-            const { data: signedData } = await supabase.storage
-              .from('gown-photos')
-              .createSignedUrls(paths, 3600);
-            setPhotoUrls(
-              (signedData ?? []).filter((e) => e.signedUrl).map((e) => e.signedUrl)
-            );
-          }
-        }
+        setBookings((postBookingsData.data ?? []) as BookingRow[]);
       } else {
-        const { data } = await supabase
-          .from('style_preferences')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-        setPreferences(data as StylePreferences | null);
+        const [prefsData, preBookingsData] = await Promise.all([
+          supabase
+            .from('style_preferences')
+            .select('*')
+            .eq('user_id', userId)
+            .single(),
+          supabase
+            .from('bookings')
+            .select('id, listing_id, rental_days, amount_cents, platform_fee_cents, status, gown_listings(neckline, silhouette)')
+            .eq('pre_bride_id', userId)
+            .order('created_at', { ascending: false }),
+        ]);
+        setPreferences(prefsData.data as StylePreferences | null);
+        setBookings((preBookingsData.data ?? []) as BookingRow[]);
       }
 
       setLoading(false);
@@ -187,24 +222,48 @@ export default function DashboardPage() {
     window.location.href = url;
   }
 
-  async function toggleAvailability() {
-    if (!listing) return;
-    const newStatus = !listing.is_available;
+  async function toggleAvailability(listingId: string) {
+    const target = listings.find((l) => l.id === listingId);
+    if (!target) return;
+    const newStatus = !target.is_available;
 
-    // Update local state immediately for fast UI feedback
-    setListing({ ...listing, is_available: newStatus });
+    setListings((prev) =>
+      prev.map((l) => l.id === listingId ? { ...l, is_available: newStatus } : l)
+    );
 
-    // Make request to Supabase
     const { error } = await supabase
       .from('gown_listings')
       .update({ is_available: newStatus })
-      .eq('id', listing.id);
+      .eq('id', listingId);
 
     if (error) {
-      // Revert if it fails
-      setListing({ ...listing, is_available: !newStatus });
+      setListings((prev) =>
+        prev.map((l) => l.id === listingId ? { ...l, is_available: !newStatus } : l)
+      );
       alert('Failed to update availability. Please try again.');
     }
+  }
+
+  async function releasePayment(bookingId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    setPayoutPending(bookingId);
+    setPayoutError(null);
+    const res = await fetch('/api/stripe/payout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ bookingId }),
+    });
+    if (res.ok) {
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'completed' } : b));
+    } else {
+      const json = await res.json();
+      setPayoutError(json.error ?? 'Could not release payment — please try again.');
+    }
+    setPayoutPending(null);
   }
 
   if (loading) {
@@ -265,83 +324,65 @@ export default function DashboardPage() {
           </Section>
         )}
 
-        {/* Post-bride: gown listing */}
-        {profile.role === 'post-bride' && listing && (
-          <Section title="Your gown listing" editHref="/edit/listing">
-            {photoUrls.length > 0 && (
-              <div className="mb-5 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setLightboxIndex(0)}
-                  className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-[var(--color-blush)] cursor-zoom-in block"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photoUrls[0]} alt="Gown" className="h-full w-full object-cover" />
-                </button>
-                {photoUrls.length > 1 && (
-                  <div className={`grid gap-2 ${photoUrls.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {photoUrls.slice(1).map((url, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setLightboxIndex(i + 1)}
-                        className="aspect-square overflow-hidden rounded-lg bg-[var(--color-blush)] cursor-zoom-in block"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt={`Gown photo ${i + 2}`} className="h-full w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Tag>{listing.neckline}</Tag>
-                <Tag>{listing.silhouette}</Tag>
-                {listing.materials.map((m) => <Tag key={m}>{m}</Tag>)}
-              </div>
-              <Stat label="Condition" value={listing.condition} />
-              {listing.condition_notes && (
-                <Stat label="Notes" value={listing.condition_notes} />
-              )}
-              <Stat label="Location" value={`${listing.borough}, New York`} />
-              <Stat label="Wedding date" value={new Date(listing.wedding_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
-              {(listing.retail_price || listing.price_1day || listing.price_3day || listing.price_7day) && (
-                <div>
-                  <p className="text-xs text-[var(--color-muted)]">Pricing</p>
-                  <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                    {listing.retail_price && (
-                      <span className="text-sm text-stone-400 line-through">${listing.retail_price.toLocaleString()} retail</span>
-                    )}
-                    {listing.price_1day && <span className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_1day} / 1 day</span>}
-                    {listing.price_3day && <span className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_3day} / 3 days</span>}
-                    {listing.price_7day && <span className="text-sm font-medium text-[var(--color-charcoal)]">${listing.price_7day} / 7+ days</span>}
+        {/* Post-bride: gown listings grid */}
+        {profile.role === 'post-bride' && (
+          <div>
+            <p className="mb-4 text-xs uppercase tracking-widest text-[var(--color-muted)]">Your gowns</p>
+            <p className="mb-4 text-xs text-[var(--color-muted)] leading-relaxed">
+              Remember to factor in dry cleaning costs when setting your rental price — bridal gown specialist cleaning typically runs $150–$400.{' '}
+              <a href="/faq#cleaning" className="text-[var(--color-rose)] hover:underline">Learn more</a>
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {listings.map((l) => (
+                <div key={l.id} className="rounded-xl border border-[var(--color-border)] overflow-hidden bg-white">
+                  <Link href={`/edit/listing/${l.id}`} className="block">
+                    <div className="aspect-square bg-[var(--color-blush)]">
+                      {thumbnails.get(l.id) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={thumbnails.get(l.id)}
+                          alt={`${l.silhouette} ${l.neckline} gown`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <span className="text-xs text-[var(--color-muted)]">No photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-3 pt-3">
+                      <p className="text-sm font-medium text-[var(--color-charcoal)] truncate">
+                        {l.silhouette} · {l.neckline}
+                      </p>
+                      {l.price_3day != null && (
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">from ${Math.round(l.price_3day / 3)}/day</p>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="px-3 py-3 flex items-center justify-between">
+                    <span className={`text-xs font-medium ${l.is_available ? 'text-[var(--color-rose)]' : 'text-[var(--color-muted)]'}`}>
+                      {l.is_available ? 'Available' : 'Paused'}
+                    </span>
+                    <button
+                      onClick={() => toggleAvailability(l.id)}
+                      className="text-xs text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors underline"
+                    >
+                      {l.is_available ? 'Pause' : 'Unpause'}
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
+              ))}
 
-            <div className="mt-6 border-t border-[var(--color-border)] pt-5 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--color-charcoal)]">Listing Status</p>
-                <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                  {listing.is_available
-                    ? 'Your gown is visible to pre-brides.'
-                    : 'Your gown is currently hidden from matches.'}
-                </p>
-              </div>
-              <button
-                onClick={toggleAvailability}
-                className={`min-w-[120px] rounded-full px-4 py-2 text-sm font-medium transition-colors ${listing.is_available
-                  ? 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                  : 'bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)]'
-                  }`}
+              {/* Add gown card */}
+              <Link
+                href="/listings/new"
+                className="rounded-xl border-2 border-dashed border-[var(--color-rose)] bg-[#fdf8f6] flex flex-col items-center justify-center gap-2 min-h-[180px] hover:bg-[var(--color-blush)] transition-colors"
               >
-                {listing.is_available ? 'Take off market' : 'Make available'}
-              </button>
+                <span className="text-2xl text-[var(--color-rose)]">+</span>
+                <span className="text-xs font-medium text-[var(--color-rose)]">Add gown</span>
+              </Link>
             </div>
-          </Section>
+          </div>
         )}
 
         {/* Pre-bride: style preferences */}
@@ -378,7 +419,7 @@ export default function DashboardPage() {
           </Section>
         )}
 
-        {profile.role === 'post-bride' && listing && stripeStatus !== 'connected' && (
+        {profile.role === 'post-bride' && listings.length > 0 && stripeStatus !== 'connected' && (
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4">
             <p className="text-sm font-medium text-[var(--color-charcoal)]">
               {stripeStatus === 'pending' ? 'Finish setting up payouts' : 'Set up payouts to receive rent'}
@@ -398,26 +439,84 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {profile.role === 'post-bride' && listing && stripeStatus === 'connected' && (
+        {profile.role === 'post-bride' && listings.length > 0 && stripeStatus === 'connected' && (
           <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <span className="text-xs font-medium text-emerald-700">Payouts connected ✓</span>
-            <span className="text-xs text-emerald-600">You&apos;ll receive 80% of each rental.</span>
           </div>
         )}
 
-        {profile.role === 'post-bride' && listing && !hasWornPhoto && (
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-4 py-4">
-            <p className="text-sm font-medium text-[var(--color-charcoal)]">Add a wedding day photo</p>
-            <p className="mt-1 text-xs text-[var(--color-muted)] leading-relaxed">
-              Listings with a worn photo get more interest. Share one from your wedding day or bridal shoot.
-            </p>
-            <Link
-              href="/edit/listing"
-              className="mt-3 inline-block rounded-full border border-[var(--color-rose)] px-4 py-1.5 text-xs text-[var(--color-rose)] transition-colors hover:bg-[var(--color-rose)] hover:text-white"
-            >
-              Add photo →
-            </Link>
-          </div>
+        {bookings.length > 0 && (
+          <Section title="Your bookings">
+            <div className="divide-y divide-[var(--color-border)]">
+              {bookings.map((booking) => {
+                const gown = Array.isArray(booking.gown_listings)
+                  ? booking.gown_listings[0] ?? null
+                  : booking.gown_listings;
+                const label = gown ? `${gown.silhouette} · ${gown.neckline}` : 'Gown';
+                const days = booking.rental_days;
+                const amount = profile.role === 'pre-bride'
+                  ? booking.amount_cents / 100
+                  : (booking.amount_cents - booking.platform_fee_cents) / 100;
+                const isReleasing = payoutPending === booking.id;
+
+                const badgeClass =
+                  booking.status === 'booked'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : booking.status === 'pending_payment'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-stone-200 bg-stone-50 text-stone-500';
+                const badgeLabel =
+                  booking.status === 'booked' ? 'Confirmed'
+                  : booking.status === 'pending_payment' ? 'Awaiting payment'
+                  : 'Completed';
+
+                return (
+                  <div key={booking.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Link
+                        href={`/listings/${booking.listing_id}`}
+                        className="flex-1 min-w-0 text-sm text-[var(--color-charcoal)] hover:text-[var(--color-rose)] transition-colors truncate"
+                      >
+                        {label}
+                      </Link>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}>
+                        {badgeLabel}
+                      </span>
+                      <span className="shrink-0 text-xs text-[var(--color-muted)]">
+                        {days} day{days > 1 ? 's' : ''}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-[var(--color-charcoal)]">
+                        ${amount.toFixed(0)}
+                      </span>
+                      {profile.role === 'post-bride' && booking.status === 'booked' && (
+                        <button
+                          type="button"
+                          disabled={isReleasing}
+                          onClick={() => releasePayment(booking.id)}
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                            isReleasing
+                              ? 'bg-[var(--color-blush)] text-[var(--color-muted)] cursor-wait'
+                              : 'bg-[var(--color-rose)] text-white hover:bg-[var(--color-rose-dark)] cursor-pointer'
+                          }`}
+                        >
+                          {isReleasing ? 'Releasing…' : 'Release payment →'}
+                        </button>
+                      )}
+                    </div>
+                    {payoutError && payoutPending === null && booking.status === 'booked' && profile.role === 'post-bride' && (
+                      <p className="mt-1 text-xs text-red-500">{payoutError}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {bookings.length === 0 && (
+          <Section title="Your bookings">
+            <p className="text-sm text-[var(--color-muted)]">No bookings yet.</p>
+          </Section>
         )}
 
         {profile.role === 'pre-bride' ? (
@@ -447,59 +546,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Lightbox */}
-      {lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
-          onClick={() => setLightboxIndex(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photoUrls[lightboxIndex]}
-            alt="Gown"
-            className="max-h-[90vh] max-w-[90vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {/* Close */}
-          <button
-            type="button"
-            onClick={() => setLightboxIndex(null)}
-            className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-white transition-colors hover:bg-white/25"
-          >
-            ×
-          </button>
-
-          {/* Prev */}
-          {photoUrls.length > 1 && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + photoUrls.length) % photoUrls.length); }}
-              className="absolute left-5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/25"
-            >
-              ‹
-            </button>
-          )}
-
-          {/* Next */}
-          {photoUrls.length > 1 && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % photoUrls.length); }}
-              className="absolute right-5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/25"
-            >
-              ›
-            </button>
-          )}
-
-          {/* Counter */}
-          {photoUrls.length > 1 && (
-            <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/50">
-              {lightboxIndex + 1} / {photoUrls.length}
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

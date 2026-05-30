@@ -10,7 +10,7 @@ export default function Home() {
         <p className="mb-4 text-xs uppercase tracking-widest text-[var(--color-rose)]">
           New York City
         </p>
-        <h1 className="max-w-2xl text-5xl font-light leading-tight tracking-wide text-[var(--color-charcoal)] md:text-6xl">
+        <h1 className="max-w-2xl text-4xl font-light leading-tight tracking-wide text-[var(--color-charcoal)] sm:text-5xl md:text-6xl">
           Your dream dress is already out there.
         </h1>
         <p className="mt-6 max-w-lg text-lg text-[var(--color-muted)] leading-relaxed">
@@ -148,6 +148,10 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-[var(--color-border)] px-6 py-8 text-center text-xs text-[var(--color-muted)]">
+        <div className="mb-3 flex items-center justify-center gap-6">
+          <Link href="/faq" className="hover:text-[var(--color-charcoal)] transition-colors">FAQ</Link>
+          <a href="mailto:hello@whogetsyou.com" className="hover:text-[var(--color-charcoal)] transition-colors">Contact</a>
+        </div>
         © {new Date().getFullYear()} WhoGetsYou. New York City.
       </footer>
     </div>

@@ -13,10 +13,11 @@
 | `/sign-up/pre-bride` | ✅ | Pre-bride signup flow |
 | `/sign-up/post-bride` | ✅ | Post-bride signup flow |
 | `/sign-up/success` | ✅ | Post-signup confirmation |
-| `/dashboard` | ✅ | Auth-protected; shows profile, measurements, photos, listing |
+| `/dashboard` | ✅ | Post-bride: 2-column card grid of all listings + "+Add gown" card. Pre-bride: style preferences. |
 | `/dashboard/settings` | ✅ | Account settings |
 | `/dashboard/delete-account` | ✅ | Account deletion flow |
-| `/edit/listing` | ✅ | Edit gown listing details |
+| `/edit/listing/[id]` | ✅ | Edit a specific gown listing by ID |
+| `/listings/new` | ✅ | Create an additional gown listing |
 | `/edit/measurements` | ✅ | Edit body measurements |
 | `/edit/preferences` | ✅ | Edit style preferences (pre-bride only) |
 | `/matches` | ⚠️ | Filter/sort/scoring done. Card rendering UI incomplete. |
@@ -51,6 +52,7 @@ Edge Functions in `supabase/functions/`: `notify-interest/`, `notify-accepted/`
 
 | Date | What changed |
 |------|-------------|
+| May 2026 | Multi-listing support. Dropped UNIQUE on gown_listings.user_id. Dashboard replaced with card grid. /edit/listing → /edit/listing/[id]. Added /listings/new. |
 | Mar 17 2026 | Added Brevo transactional email on lender waitlist submit. New `/api/waitlist` route handles Supabase insert + Brevo template ID 1. `BREVO_API_KEY` must be added to Vercel env before deploy. |
 | Mar 17 2026 | Pushed to GitHub. Restructured docs into docs/. Added /handoff slash command and Stop hook. Updated CLAUDE.md and CLAUDE BASICS.md with CSS variables and read-order. |
 | Mar 2026 | Homepage hero CTAs replaced with two waitlist cards. Built /dress-request. SQL: waitlist-submissions, dress-requests, measurements-v2. |

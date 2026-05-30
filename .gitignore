@@ -18,3 +18,4 @@ tsconfig.tsbuildinfo
 
 # Vercel
 .vercel
+.superpowers/

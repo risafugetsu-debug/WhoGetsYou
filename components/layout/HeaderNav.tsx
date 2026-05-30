@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 export default function HeaderNav() {
   const router = useRouter();
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,12 +16,12 @@ export default function HeaderNav() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('first_name')
-          .eq('id', session.user.id)
-          .single();
-        setFirstName(data?.first_name ?? null);
+        const [profileRes, unreadRes] = await Promise.all([
+          supabase.from('profiles').select('first_name').eq('id', session.user.id).single(),
+          supabase.from('messages').select('id', { count: 'exact', head: true }).is('read_at', null).neq('sender_id', session.user.id),
+        ]);
+        setFirstName(profileRes.data?.first_name ?? null);
+        setUnreadCount(unreadRes.count ?? 0);
       }
 
       setLoading(false);
@@ -51,9 +52,12 @@ export default function HeaderNav() {
       <div className="flex items-center gap-4">
         <Link
           href="/dashboard"
-          className="text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
+          className="relative text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
         >
           Hi, {firstName}
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-2.5 flex h-2 w-2 rounded-full bg-[var(--color-rose)]" />
+          )}
         </Link>
         <button
           onClick={handleSignOut}

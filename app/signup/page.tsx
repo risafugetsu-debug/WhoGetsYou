@@ -5,8 +5,8 @@ import SignupWizard from '@/components/signup/SignupWizard';
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-[calc(100vh-65px)] flex-col items-center justify-center py-16 px-6">
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--background)] shadow-sm px-6 py-10">
+    <div className="flex min-h-[calc(100vh-65px)] flex-col items-center justify-center py-8 px-4 sm:py-16 sm:px-6">
+      <div className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--background)] shadow-sm px-4 py-8 sm:px-6 sm:py-10">
         <SignupWizard />
       </div>
       <Link

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
@@ -21,14 +21,15 @@ interface FormState {
   condition_notes: string;
   borough: string;
   wedding_date: string;
-  price_1day: string;
   price_3day: string;
   price_7day: string;
+  price_14day: string;
   retail_price: string;
 }
 
 export default function EditListingPage() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
   const [form, setForm] = useState<FormState>({
     neckline: '',
     silhouette: '',
@@ -37,9 +38,9 @@ export default function EditListingPage() {
     condition_notes: '',
     borough: '',
     wedding_date: '',
-    price_1day: '',
     price_3day: '',
     price_7day: '',
+    price_14day: '',
     retail_price: '',
   });
   const [listingId, setListingId] = useState<string | null>(null);
@@ -78,8 +79,13 @@ export default function EditListingPage() {
       const { data } = await supabase
         .from('gown_listings')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('id', id)
         .single();
+
+      if (!data || data.user_id !== session.user.id) {
+        router.replace('/dashboard');
+        return;
+      }
 
       if (data) {
         setListingId(data.id);
@@ -91,9 +97,9 @@ export default function EditListingPage() {
           condition_notes: data.condition_notes ?? '',
           borough: data.borough,
           wedding_date: data.wedding_date,
-          price_1day: data.price_1day != null ? String(data.price_1day) : '',
           price_3day: data.price_3day != null ? String(data.price_3day) : '',
           price_7day: data.price_7day != null ? String(data.price_7day) : '',
+          price_14day: data.price_14day != null ? String(data.price_14day) : '',
           retail_price: data.retail_price != null ? String(data.retail_price) : '',
         });
 
@@ -144,7 +150,7 @@ export default function EditListingPage() {
       setLoading(false);
     }
     load();
-  }, [router]);
+  }, [router, id]);
 
   function toggleMaterial(m: string) {
     setForm((f) => ({
@@ -191,11 +197,11 @@ export default function EditListingPage() {
       condition_notes: form.condition_notes,
       borough: form.borough,
       wedding_date: form.wedding_date,
-      price_1day: form.price_1day ? parseFloat(form.price_1day) : null,
       price_3day: form.price_3day ? parseFloat(form.price_3day) : null,
       price_7day: form.price_7day ? parseFloat(form.price_7day) : null,
+      price_14day: form.price_14day ? parseFloat(form.price_14day) : null,
       retail_price: form.retail_price ? parseFloat(form.retail_price) : null,
-    }).eq('user_id', session.user.id);
+    }).eq('id', id);
 
     async function uploadPhotos(files: File[], category: 'worn' | 'detail' | 'condition') {
       for (const file of files) {
@@ -442,12 +448,22 @@ export default function EditListingPage() {
             while putting money back in your pocket from something sitting in a bag.
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          {/* Guidance on tiered pricing */}
+          <div className="mb-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-xs text-[var(--color-muted)] leading-relaxed space-y-1">
+            <p><span className="font-medium text-[var(--color-charcoal)]">3 days</span> — standard NYC wedding. Set your base price here.</p>
+            <p><span className="font-medium text-[var(--color-charcoal)]">7 days</span> — destination or multi-day. Slightly lower per-day rate encourages longer bookings.</p>
+            <p><span className="font-medium text-[var(--color-charcoal)]">14 days</span> — extended trip or multiple events. Best value rate.</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mb-2">
             {([
-              { key: 'price_1day', label: '1 day' },
-              { key: 'price_3day', label: '3 days' },
-              { key: 'price_7day', label: '7+ days' },
-            ] as const).map(({ key, label }) => (
+              { key: 'price_3day', label: '3 days', days: 3 },
+              { key: 'price_7day', label: '7 days', days: 7 },
+              { key: 'price_14day', label: '14 days', days: 14 },
+            ] as const).map(({ key, label, days }) => {
+              const val = parseFloat(form[key]);
+              const perDay = !isNaN(val) && val > 0 ? Math.round(val / days) : null;
+              return (
               <div key={key}>
                 <label className="mb-1 block text-xs text-[var(--color-muted)]">{label}</label>
                 <div className="relative">
@@ -457,13 +473,28 @@ export default function EditListingPage() {
                     step="1"
                     min="0"
                     value={form[key]}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setForm((f) => {
+                        const next: typeof f = { ...f, [key]: v };
+                        if (key === 'price_3day' && v) {
+                          const base = parseFloat(v);
+                          if (!isNaN(base)) {
+                            if (!f.price_7day) next.price_7day = String(Math.round(base / 3 * 7 * 0.90));
+                            if (!f.price_14day) next.price_14day = String(Math.round(base / 3 * 14 * 0.80));
+                          }
+                        }
+                        return next;
+                      });
+                    }}
                     className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--background)] pl-7 pr-3 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors"
                     placeholder="—"
                   />
                 </div>
+                {perDay && <p className="mt-1 text-xs text-[var(--color-muted)]">${perDay}/day</p>}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Expandable pricing tips */}
@@ -491,6 +522,12 @@ export default function EditListingPage() {
               </div>
             </div>
           )}
+
+          <p className="mt-4 text-xs text-[var(--color-muted)] leading-relaxed">
+            WhoGetsYou takes a small service fee from each completed rental to keep the platform running.
+            The prices you set above are what renters pay — your earnings will reflect the fee deduction.{' '}
+            <a href="/faq#payments" className="text-[var(--color-rose)] hover:underline">Learn more</a>
+          </p>
         </div>
 
         {/* Borough */}
