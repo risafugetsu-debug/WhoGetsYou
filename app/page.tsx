@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import HeroCTAs from '@/components/HeroCTAs';
+import WaitlistForm from '@/components/WaitlistForm';
 
 export default function Home() {
   return (
@@ -144,6 +145,22 @@ export default function Home() {
           >
             I&apos;m looking for a gown
           </Link>
+        </div>
+      </section>
+
+      {/* Waitlist */}
+      <section className="border-t border-[var(--color-border)] bg-[var(--color-blush)] px-6 py-20">
+        <div className="mx-auto max-w-lg text-center">
+          <p className="text-xs uppercase tracking-widest text-[var(--color-rose)]">Stay in the loop</p>
+          <h2 className="mt-3 text-2xl font-light tracking-wide text-[var(--color-charcoal)]">
+            Not ready to sign up yet?
+          </h2>
+          <p className="mt-3 text-sm text-[var(--color-muted)] leading-relaxed">
+            Leave your email and we&apos;ll reach out as the platform grows — new listings, new matches, and when payments go live.
+          </p>
+          <div className="mt-8">
+            <WaitlistForm />
+          </div>
         </div>
       </section>
 

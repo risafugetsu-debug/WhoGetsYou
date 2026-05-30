@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
-  const { email, first_name } = await req.json();
+  const { email, first_name, role } = await req.json();
 
   if (!email?.trim()) {
     return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { error: dbError } = await supabase.from('waitlist_submissions').insert({
     email: email.trim(),
     first_name: first_name?.trim() || null,
-    role: 'lender',
+    role: role === 'post-bride' ? 'lender' : 'renter',
   });
 
   if (dbError) {
