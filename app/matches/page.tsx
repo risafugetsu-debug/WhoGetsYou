@@ -292,22 +292,43 @@ export default function MatchesPage() {
       )}
 
       {matches.length === 0 ? (
-        <div className="mt-16 text-center">
-          <p className="text-[var(--color-muted)]">
-            No matches yet — you&apos;re one of the first. Check back as more post-brides join.
-          </p>
+        <div className="mt-16 mx-auto max-w-sm text-center space-y-5">
+          <p className="text-4xl">🌸</p>
+          <div className="space-y-2">
+            <p className="text-base font-light text-[var(--color-charcoal)]">You&apos;re one of the first.</p>
+            <p className="text-sm text-[var(--color-muted)] leading-relaxed">
+              We&apos;re growing our community of post-brides in New York City. As more gowns are listed that match your measurements and style, they&apos;ll appear here — ranked by fit.
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-blush)] px-5 py-4 text-left space-y-3">
+            <p className="text-xs font-medium text-[var(--color-charcoal)]">While you wait</p>
+            <ul className="space-y-2 text-xs text-[var(--color-muted)] leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--color-rose)] mt-0.5">→</span>
+                <span>Know a bride who wore her dress once? Send her to <span className="font-medium text-[var(--color-charcoal)]">whogetsyou.com</span> — your match could already exist.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--color-rose)] mt-0.5">→</span>
+                <span>Check back in a few days — we onboard new post-brides regularly.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--color-rose)] mt-0.5">→</span>
+                <span>Your measurements and preferences are saved — the moment a match exists, you&apos;ll see her here.</span>
+              </li>
+            </ul>
+          </div>
           <Link
-            href="/"
-            className="mt-4 inline-block text-sm text-[var(--color-rose)] hover:underline"
+            href="/edit/preferences"
+            className="inline-block text-sm text-[var(--color-rose)] hover:underline transition-colors"
           >
-            Back to home
+            Update your style preferences →
           </Link>
         </div>
       ) : (
         <>
           {/* Sort + filter bar */}
           <div className="mt-5 space-y-3">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-[var(--color-muted)]">
                 {displayed.length} {displayed.length === 1 ? 'gown' : 'gowns'} matched
               </p>

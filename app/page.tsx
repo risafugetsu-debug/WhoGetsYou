@@ -10,7 +10,7 @@ export default function Home() {
         <p className="mb-4 text-xs uppercase tracking-widest text-[var(--color-rose)]">
           New York City
         </p>
-        <h1 className="max-w-2xl text-5xl font-light leading-tight tracking-wide text-[var(--color-charcoal)] md:text-6xl">
+        <h1 className="max-w-2xl text-4xl font-light leading-tight tracking-wide text-[var(--color-charcoal)] sm:text-5xl md:text-6xl">
           Your dream dress is already out there.
         </h1>
         <p className="mt-6 max-w-lg text-lg text-[var(--color-muted)] leading-relaxed">

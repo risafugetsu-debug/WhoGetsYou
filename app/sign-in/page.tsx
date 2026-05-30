@@ -35,7 +35,7 @@ function SignInForm() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-65px)] flex-col items-center justify-center px-6 py-16">
+    <div className="flex min-h-[calc(100vh-65px)] flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-16">
       <div className="w-full max-w-sm">
         {isNew && (
           <div className="mb-6 rounded-xl border border-[var(--color-rose)] bg-[var(--color-blush)] px-4 py-3 text-sm text-[var(--color-rose)]">
