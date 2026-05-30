@@ -34,6 +34,7 @@ export default function MatchesPage() {
   const [error, setError] = useState<string | null>(null);
   const [interestedIds, setInterestedIds] = useState<Set<string>>(new Set());
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
+  const [interestIdMap, setInterestIdMap] = useState<Map<string, string>>(new Map());
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [interestErrors, setInterestErrors] = useState<Map<string, string>>(new Map());
   const [sortBy, setSortBy] = useState<'combined' | 'fit' | 'style'>('combined');
@@ -112,7 +113,7 @@ export default function MatchesPage() {
         supabase.from('measurements').select('*').in('user_id', postBrideIds),
         supabase.from('profiles').select('id, first_name, email').in('id', postBrideIds),
         supabase.from('gown_photos').select('listing_id, storage_path').in('listing_id', listingIds),
-        supabase.from('interests').select('listing_id, accepted_at').eq('pre_bride_id', userId),
+        supabase.from('interests').select('id, listing_id, accepted_at').eq('pre_bride_id', userId),
       ]);
 
       const postMeasurementsMap = new Map<string, MeasurementRow>(
@@ -134,9 +135,10 @@ export default function MatchesPage() {
         }
       }
 
-      const interestRows = (interestsRes.data ?? []) as { listing_id: string; accepted_at: string | null }[];
+      const interestRows = (interestsRes.data ?? []) as { id: string; listing_id: string; accepted_at: string | null }[];
       setInterestedIds(new Set(interestRows.map((i) => i.listing_id)));
       setAcceptedIds(new Set(interestRows.filter((i) => !!i.accepted_at).map((i) => i.listing_id)));
+      setInterestIdMap(new Map(interestRows.map((i) => [i.listing_id, i.id])));
 
       // Score and rank
       const ranked = rankListings(myMeasurements, myPreferences, listings, postMeasurementsMap);
@@ -402,6 +404,7 @@ export default function MatchesPage() {
                   match={match}
                   isInterested={interestedIds.has(match.listing.id)}
                   isAccepted={acceptedIds.has(match.listing.id)}
+                  interestId={interestIdMap.get(match.listing.id) ?? null}
                   isPending={pendingId === match.listing.id}
                   interestError={interestErrors.get(match.listing.id) ?? null}
                   onExpressInterest={() => expressInterest(match.listing.id, match.listing.user_id)}
@@ -419,6 +422,7 @@ function MatchCard({
   match,
   isInterested,
   isAccepted,
+  interestId,
   isPending,
   interestError,
   onExpressInterest,
@@ -426,11 +430,12 @@ function MatchCard({
   match: ListingWithPhoto;
   isInterested: boolean;
   isAccepted: boolean;
+  interestId: string | null;
   isPending: boolean;
   interestError: string | null;
   onExpressInterest: () => void;
 }) {
-  const { listing, fitScore, styleScore, combinedScore, fitLabel, postBrideFirstName, postBrideEmail, photoUrl } = match;
+  const { listing, fitScore, styleScore, combinedScore, fitLabel, postBrideFirstName, photoUrl } = match;
 
   const scoreBg =
     combinedScore >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
@@ -506,18 +511,18 @@ function MatchCard({
         </div>
 
         {isAccepted ? (
-          <div className="relative z-[2] mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <p className="text-xs font-medium text-emerald-700">She accepted your interest ✓</p>
-            {postBrideEmail && (
-              <p className="mt-1 text-sm text-emerald-800">
-                Reach out:{' '}
-                <a
-                  href={`mailto:${postBrideEmail}`}
-                  className="font-medium underline hover:no-underline"
-                >
-                  {postBrideEmail}
-                </a>
-              </p>
+          <div className="relative z-[2] mt-2 space-y-2">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs font-medium text-emerald-700">She accepted your interest ✓</p>
+              <p className="mt-0.5 text-xs text-emerald-600">Message her to arrange a try-on.</p>
+            </div>
+            {interestId && (
+              <a
+                href={`/messages/${interestId}`}
+                className="flex items-center justify-center w-full rounded-full border border-[var(--color-rose)] py-2.5 text-sm font-medium text-[var(--color-rose)] hover:bg-[var(--color-blush)] transition-colors"
+              >
+                Message {postBrideFirstName} →
+              </a>
             )}
           </div>
         ) : (
