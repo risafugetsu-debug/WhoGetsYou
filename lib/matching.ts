@@ -58,13 +58,13 @@ export interface MeasurementRow {
   unit_system: string;
   height: number;
   bust_top: number;
-  under_bust: number;
+  under_bust: number | null;
   waist: number;
-  high_hip: number;
+  high_hip: number | null;
   low_hip: number;
-  shoulder_width: number;
+  shoulder_width: number | null;
   neck_to_waist: number;
-  arm_length: number;
+  arm_length: number | null;
 }
 
 export interface GownListing {
@@ -120,27 +120,34 @@ export function scoreListing(
     low_hip: toCm(preBrideMeasurements.low_hip, preUnit),
     waist: toCm(preBrideMeasurements.waist, preUnit),
     height: toCm(preBrideMeasurements.height, preUnit),
-    under_bust: toCm(preBrideMeasurements.under_bust, preUnit),
-    high_hip: toCm(preBrideMeasurements.high_hip, preUnit),
-    shoulder_width: toCm(preBrideMeasurements.shoulder_width, preUnit),
+    under_bust: toCm(preBrideMeasurements.under_bust ?? 0, preUnit),
+    high_hip: toCm(preBrideMeasurements.high_hip ?? 0, preUnit),
+    shoulder_width: toCm(preBrideMeasurements.shoulder_width ?? 0, preUnit),
   };
 
-  const postValues: Record<string, number> = {
+  const postValues: Record<string, number | null> = {
     bust_top: toCm(postBrideMeasurements.bust_top, postUnit),
     low_hip: toCm(postBrideMeasurements.low_hip, postUnit),
     waist: toCm(postBrideMeasurements.waist, postUnit),
     height: toCm(postBrideMeasurements.height, postUnit),
-    under_bust: toCm(postBrideMeasurements.under_bust, postUnit),
-    high_hip: toCm(postBrideMeasurements.high_hip, postUnit),
-    shoulder_width: toCm(postBrideMeasurements.shoulder_width, postUnit),
+    under_bust: postBrideMeasurements.under_bust != null
+      ? toCm(postBrideMeasurements.under_bust, postUnit) : null,
+    high_hip: postBrideMeasurements.high_hip != null
+      ? toCm(postBrideMeasurements.high_hip, postUnit) : null,
+    shoulder_width: postBrideMeasurements.shoulder_width != null
+      ? toCm(postBrideMeasurements.shoulder_width, postUnit) : null,
   };
 
-  // Weighted fit score
+  // Weighted fit score — skip N/A dress fields and renormalize
   let fitScore = 0;
+  let usedWeightSum = 0;
   for (const key of Object.keys(WEIGHTS)) {
-    const s = scoreMeasurement(preValues[key], postValues[key], TOLERANCE_CM[key]);
-    fitScore += s * WEIGHTS[key];
+    const postCm = postValues[key];
+    if (postCm === null) continue;
+    fitScore += scoreMeasurement(preValues[key], postCm, TOLERANCE_CM[key]) * WEIGHTS[key];
+    usedWeightSum += WEIGHTS[key];
   }
+  fitScore = usedWeightSum > 0 ? fitScore / usedWeightSum : 0;
 
   // Style overlap score
   const necklineMatch = preBridePreferences.necklines.includes(listing.neckline) ? 1 : 0;
