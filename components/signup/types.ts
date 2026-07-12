@@ -63,12 +63,16 @@ export interface PostBrideMeasurements {
   heightInches: string;
   dressBust: string;         // discriminator — 'dressBust' in m = post-bride
   dressUnderBust: string;
+  dressUnderBustNA: boolean;
   dressWaist: string;
   dressHighHip: string;
+  dressHighHipNA: boolean;
   dressHips: string;
   dressNeckToWaist: string;
   dressShoulderWidth: string;
+  dressShoulderWidthNA: boolean;
   dressArmLength: string;
+  dressArmLengthNA: boolean;
   heelHeight: string;
 }
 
