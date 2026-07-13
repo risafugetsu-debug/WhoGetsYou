@@ -17,6 +17,8 @@ const FIELDS: { key: string; label: string; guide: string }[] = [
   { key: 'arm_length', label: 'Arm Length', guide: 'Arm slightly bent, from the tip of your shoulder to your wrist bone.' },
 ];
 
+const NA_ABLE_KEYS = ['shoulder_width', 'under_bust', 'high_hip', 'arm_length'];
+
 type FormState = Record<string, string> & { unit_system: string };
 
 export default function EditMeasurementsPage() {
@@ -32,17 +34,21 @@ export default function EditMeasurementsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [role, setRole] = useState<'pre-bride' | 'post-bride' | null>(null);
+  const [naFields, setNaFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/sign-in'); return; }
 
-      const { data } = await supabase
-        .from('measurements')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
+      const [profileRes, measureRes] = await Promise.all([
+        supabase.from('profiles').select('role').eq('id', session.user.id).single(),
+        supabase.from('measurements').select('*').eq('user_id', session.user.id).single(),
+      ]);
+
+      setRole(profileRes.data?.role ?? null);
+      const data = measureRes.data;
 
       if (data) {
         const sourceData = {
@@ -62,6 +68,13 @@ export default function EditMeasurementsPage() {
         });
         if (data.unit_system === 'in') setInData(sourceData);
         else setCmData(sourceData);
+
+        const initialNA = new Set<string>();
+        if (data.shoulder_width === null) initialNA.add('shoulder_width');
+        if (data.under_bust === null)     initialNA.add('under_bust');
+        if (data.high_hip === null)       initialNA.add('high_hip');
+        if (data.arm_length === null)     initialNA.add('arm_length');
+        setNaFields(initialNA);
       }
 
       setLoading(false);
@@ -72,6 +85,7 @@ export default function EditMeasurementsPage() {
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     for (const field of FIELDS) {
+      if (naFields.has(field.key)) continue;
       const val = parseFloat(form[field.key]);
       if (!form[field.key] || isNaN(val) || val <= 0) {
         newErrors[field.key] = 'Required';
@@ -93,13 +107,13 @@ export default function EditMeasurementsPage() {
       unit_system: form.unit_system,
       height: parseFloat(form.height),
       neck_to_waist: parseFloat(form.neck_to_waist),
-      shoulder_width: parseFloat(form.shoulder_width),
+      shoulder_width: naFields.has('shoulder_width') ? null : parseFloat(form.shoulder_width),
       bust_top: parseFloat(form.bust_top),
-      under_bust: parseFloat(form.under_bust),
+      under_bust: naFields.has('under_bust') ? null : parseFloat(form.under_bust),
       waist: parseFloat(form.waist),
-      high_hip: parseFloat(form.high_hip),
+      high_hip: naFields.has('high_hip') ? null : parseFloat(form.high_hip),
       low_hip: parseFloat(form.low_hip),
-      arm_length: parseFloat(form.arm_length),
+      arm_length: naFields.has('arm_length') ? null : parseFloat(form.arm_length),
     }).eq('user_id', session.user.id);
 
     setSaving(false);
@@ -228,20 +242,55 @@ export default function EditMeasurementsPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={form[key]}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  className={`w-20 rounded-xl border px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors ${errors[key] ? 'border-red-300' : 'border-[var(--color-border)]'
-                    } bg-[var(--background)]`}
-                />
-                <span className="text-sm text-[var(--color-muted)]">{unit}</span>
-              </div>
+              <>
+                {naFields.has(key) ? (
+                  <div className="flex items-center gap-2 opacity-40">
+                    <div className="w-20 rounded-xl border border-[var(--color-border)] bg-stone-50 px-4 py-3 text-sm text-[var(--color-muted)]">
+                      N/A
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={form[key]}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      className={`w-20 rounded-xl border px-4 py-3 text-sm text-[var(--color-charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rose)] transition-colors ${errors[key] ? 'border-red-300' : 'border-[var(--color-border)]'
+                        } bg-[var(--background)]`}
+                    />
+                    <span className="text-sm text-[var(--color-muted)]">{unit}</span>
+                  </div>
+                )}
+                {errors[key] && !naFields.has(key) && (
+                  <p className="mt-1 text-xs text-red-500">{errors[key]}</p>
+                )}
+                {role === 'post-bride' && NA_ABLE_KEYS.includes(key) && (
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={naFields.has(key)}
+                      onChange={(e) => {
+                        const next = new Set(naFields);
+                        if (e.target.checked) {
+                          next.add(key);
+                          setForm((f) => ({ ...f, [key]: '' }));
+                        } else {
+                          next.delete(key);
+                        }
+                        setNaFields(next);
+                      }}
+                      className="rounded border-[var(--color-border)]"
+                    />
+                    <span className="text-xs text-[var(--color-muted)]">Not applicable for this dress</span>
+                  </label>
+                )}
+              </>
             )}
-            {errors[key] && <p className="mt-1 text-xs text-red-500">{errors[key]}</p>}
+            {key === 'height' && errors[key] && (
+              <p className="mt-1 text-xs text-red-500">{errors[key]}</p>
+            )}
           </div>
         ))}
 
