@@ -159,7 +159,15 @@ export default function SignupWizard() {
       const emptyStep3: PreBrideMeasurements | PostBrideMeasurements =
         r === 'pre-bride'
           ? { unitSystem: 'in', heightCm: '', heightFeet: '', heightInches: '', bust: '', underBust: '', waist: '', highHip: '', hips: '', neckToWaist: '', shoulderWidth: '', armLength: '' }
-          : { unitSystem: 'in', heightCm: '', heightFeet: '', heightInches: '', dressBust: '', dressUnderBust: '', dressWaist: '', dressHighHip: '', dressHips: '', dressNeckToWaist: '', dressShoulderWidth: '', dressArmLength: '', heelHeight: '' };
+          : {
+              unitSystem: 'in', heightCm: '', heightFeet: '', heightInches: '',
+              dressBust: '', dressUnderBust: '', dressUnderBustNA: false,
+              dressWaist: '', dressHighHip: '', dressHighHipNA: false,
+              dressHips: '', dressNeckToWaist: '',
+              dressShoulderWidth: '', dressShoulderWidthNA: false,
+              dressArmLength: '', dressArmLengthNA: false,
+              heelHeight: '',
+            };
       next = { ...next, step3: emptyStep3 };
     }
 
@@ -260,6 +268,22 @@ export default function SignupWizard() {
             data={formData.step3}
             onChange={(d) => setFormData((prev) => ({ ...prev, step3: d }))}
             errors={errors}
+            dressNeckline={
+              !isPreBride && formData.step4
+                ? (formData.step4 as PostBrideStyle).neckline
+                : null
+            }
+            onNecklineChange={
+              !isPreBride
+                ? (n) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      step4: prev.step4
+                        ? { ...(prev.step4 as PostBrideStyle), neckline: n }
+                        : { neckline: n, silhouette: null, materials: [] },
+                    }))
+                : undefined
+            }
           />
         )}
 
