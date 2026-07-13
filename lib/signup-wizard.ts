@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { SignupFormData } from '@/components/signup/types';
+import type { SignupFormData, PostBrideMeasurements } from '@/components/signup/types';
 import {
   isPreBrideMeasurements,
   isPreBrideWeddingDetails,
@@ -59,19 +59,30 @@ export async function signupWizard(
           low_hip: parseFloat(step3.hips) || 0,
           arm_length: parseFloat(step3.armLength) || 0,
         }
-      : {
-          user_id: userId,
-          unit_system: unitSystem,
-          height: heightTotal,
-          neck_to_waist: parseFloat(step3.dressNeckToWaist) || 0,
-          shoulder_width: parseFloat(step3.dressShoulderWidth) || 0,
-          bust_top: parseFloat(step3.dressBust) || 0,
-          under_bust: parseFloat(step3.dressUnderBust) || 0,
-          waist: parseFloat(step3.dressWaist) || 0,
-          high_hip: parseFloat(step3.dressHighHip) || 0,
-          low_hip: parseFloat(step3.dressHips) || 0,
-          arm_length: parseFloat(step3.dressArmLength) || 0,
-        };
+      : (() => {
+          const p = step3 as PostBrideMeasurements;
+          return {
+            user_id: userId,
+            unit_system: unitSystem,
+            height: heightTotal,
+            neck_to_waist: parseFloat(p.dressNeckToWaist) || 0,
+            shoulder_width: p.dressShoulderWidthNA
+              ? null
+              : (parseFloat(p.dressShoulderWidth) || null),
+            bust_top: parseFloat(p.dressBust) || 0,
+            under_bust: p.dressUnderBustNA
+              ? null
+              : (parseFloat(p.dressUnderBust) || null),
+            waist: parseFloat(p.dressWaist) || 0,
+            high_hip: p.dressHighHipNA
+              ? null
+              : (parseFloat(p.dressHighHip) || null),
+            low_hip: parseFloat(p.dressHips) || 0,
+            arm_length: p.dressArmLengthNA
+              ? null
+              : (parseFloat(p.dressArmLength) || null),
+          };
+        })();
 
     const { error: measError } = await supabase.from('measurements').insert(measurementRow);
     if (measError) return { error: measError.message };
