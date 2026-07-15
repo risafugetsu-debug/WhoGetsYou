@@ -33,7 +33,8 @@ function formatHeight(totalInches: number): string {
   return `${ft}'${ins}"`;
 }
 
-function formatMeasurement(value: number, unit: string): string {
+function formatMeasurement(value: number | null | undefined, unit: string): string {
+  if (value === null || value === undefined) return 'N/A';
   if (!value) return '—';
   return unit === 'in' ? `${value}"` : `${value} cm`;
 }
@@ -247,15 +248,15 @@ export default function ListingDetailPage() {
     'bg-stone-50 text-stone-600 border-stone-200';
 
   const measurements = postBrideMeasurements ? [
-    { label: 'Height', value: formatHeight(postBrideMeasurements.height) },
-    { label: 'Bust', value: formatMeasurement(postBrideMeasurements.bust_top, postBrideMeasurements.unit_system) },
-    { label: 'Under bust', value: formatMeasurement(postBrideMeasurements.under_bust, postBrideMeasurements.unit_system) },
-    { label: 'Waist', value: formatMeasurement(postBrideMeasurements.waist, postBrideMeasurements.unit_system) },
-    { label: 'High hip', value: formatMeasurement(postBrideMeasurements.high_hip, postBrideMeasurements.unit_system) },
-    { label: 'Hips', value: formatMeasurement(postBrideMeasurements.low_hip, postBrideMeasurements.unit_system) },
-    { label: 'Shoulder', value: formatMeasurement(postBrideMeasurements.shoulder_width, postBrideMeasurements.unit_system) },
-    { label: 'Neck to waist', value: formatMeasurement(postBrideMeasurements.neck_to_waist, postBrideMeasurements.unit_system) },
-    { label: 'Arm length', value: formatMeasurement(postBrideMeasurements.arm_length, postBrideMeasurements.unit_system) },
+    { label: 'Height', value: formatHeight(postBrideMeasurements.height), isNA: false },
+    { label: 'Bust', value: formatMeasurement(postBrideMeasurements.bust_top, postBrideMeasurements.unit_system), isNA: false },
+    { label: 'Under bust', value: formatMeasurement(postBrideMeasurements.under_bust, postBrideMeasurements.unit_system), isNA: postBrideMeasurements.under_bust === null },
+    { label: 'Waist', value: formatMeasurement(postBrideMeasurements.waist, postBrideMeasurements.unit_system), isNA: false },
+    { label: 'High hip', value: formatMeasurement(postBrideMeasurements.high_hip, postBrideMeasurements.unit_system), isNA: postBrideMeasurements.high_hip === null },
+    { label: 'Hips', value: formatMeasurement(postBrideMeasurements.low_hip, postBrideMeasurements.unit_system), isNA: false },
+    { label: 'Shoulder', value: formatMeasurement(postBrideMeasurements.shoulder_width, postBrideMeasurements.unit_system), isNA: postBrideMeasurements.shoulder_width === null },
+    { label: 'Neck to waist', value: formatMeasurement(postBrideMeasurements.neck_to_waist, postBrideMeasurements.unit_system), isNA: false },
+    { label: 'Sleeve length', value: formatMeasurement(postBrideMeasurements.arm_length, postBrideMeasurements.unit_system), isNA: postBrideMeasurements.arm_length === null },
   ] : [];
 
   return (
@@ -407,10 +408,12 @@ export default function ListingDetailPage() {
             <div>
               <p className="mb-3 text-xs uppercase tracking-wider text-[var(--color-muted)]">Size details</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                {measurements.map(({ label, value }) => (
-                  <div key={label}>
+                {measurements.map(({ label, value, isNA }) => (
+                  <div key={label} title={isNA ? "This measurement doesn't apply to this dress style" : undefined}>
                     <p className="text-xs text-[var(--color-muted)]">{label}</p>
-                    <p className="text-sm text-[var(--color-charcoal)]">{value}</p>
+                    <p className={`text-sm ${isNA ? 'text-[var(--color-muted)] italic' : 'text-[var(--color-charcoal)]'}`}>
+                      {value}
+                    </p>
                   </div>
                 ))}
               </div>
